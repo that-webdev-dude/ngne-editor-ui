@@ -42,11 +42,21 @@ Filled by the cut (BRIEF D8, D14): one row per file, written in the cut change.
 | `src/build/licences/licences.ts` | NGNE Tilemap Editor | `scripts/licences.ts` | `eb07938` | Tilemap fix taken: build-only packages (`BUILD_PACKAGES`, now an option) and `THIRD-PARTY-LICENSE` files; test `licences-build-generator` (`buildPackageDirs`, `readPackageLicence`) | derived and noticed |
 | `src/build/licences/plugin.ts` | NGNE Sprite Editor | `vite.config.ts` | `f681adc` | The app's module collection, excluded-code check, stray check and development-server route moved into `generateLicences(options)` | derived and noticed |
 | `src/build/licences/plugin.ts` | NGNE Tilemap Editor | `vite.config.ts` | `eb07938` | Tilemap fix taken: build-only packages added to the listed packages (`withBuildPackages`); test `licences-build-generator` (`buildPackageDirs`) | derived and noticed |
+| `src/colour/contrast.ts` | NGNE Sprite Editor | `src/core/color/contrast.ts` | `f681adc` | Comment references rewritten to this package's docs and WCAG 2.1; the app's label use left out of the comments | derived and noticed |
+| `src/colour/hex.ts` | NGNE Sprite Editor | `src/core/color/hex.ts` | `f681adc` | Comment references rewritten to this package's docs; `Number.parseInt` for the global `parseInt` | derived and noticed |
+| `src/colour/hexColour.ts` | NGNE Sprite Editor | `src/ui/preferences/hexColour.ts` | `f681adc` | Moved from the UI to the colour layer; header comment rewritten to this package's docs; `Number.parseInt` for the global `parseInt` | derived and noticed |
+| `src/colour/hsv.ts` | NGNE Sprite Editor | `src/core/color/hsv.ts` | `f681adc` | Comment references rewritten to this package's docs | derived and noticed |
+| `src/colour/index.ts` | NGNE Sprite Editor | `src/core/color/index.ts` | `f681adc` | Exports of `contrast.ts` and `hexColour.ts` added; the OKLab names re-exported from the clean-room `oklab.ts` (§3); import paths name the built file (`./x.js`); header comment added | derived and noticed |
+| `src/colour/rgba.ts` | NGNE Sprite Editor | `src/core/color/rgba.ts` | `f681adc` | Comment references rewritten to this package's docs | derived and noticed |
 | `src/styles/base.css` | NGNE Sprite Editor | `src/ui/styles/base.css` | `f681adc` | Comment references rewritten to this package's docs; a header comment added | derived and noticed |
 | `src/styles/tokens.css` | NGNE Sprite Editor | `src/ui/styles/tokens.css` | `f681adc` | Comment references rewritten to this package's docs | derived and noticed |
 | `src/ui/gallery/Gallery.tsx` | NGNE Sprite Editor | `src/ui/gallery/Gallery.tsx` | `f681adc` | Frame only: the header and one section per entry kept, the primitive demos, theme store and toasts dropped; entries from a list (`entries.ts`); the theme switch made the frame's own radio group; the licences link and input modality added | derived and noticed |
 | `src/ui/gallery/gallery.css` | NGNE Sprite Editor | `src/ui/gallery/gallery.css` | `f681adc` | Frame rules kept, demo rules dropped; theme switch, licences link and Tokens entry rules added | derived and noticed |
 | `tests/e2e/gallery.spec.ts` | NGNE Sprite Editor | `tests/e2e/se-006-gallery.spec.ts` | `f681adc` | The axe audit and its on-screen check kept; the primitive, theme-store and keyboard cases left to their entries; Tokens entry, window-size and licences-link cases written for the package | derived and noticed |
+| `tests/unit/colour-contrast.test.ts` | NGNE Sprite Editor | `tests/unit/se-023-contrast.test.ts` | `f681adc` | Import from the colour subpath; the app's preset tag colours left out of the grid case; comment references rewritten | derived and noticed |
+| `tests/unit/colour-conversions.test.ts` | NGNE Sprite Editor | `tests/unit/se-016-color.test.ts` | `f681adc` | Import from the colour subpath; header comment rewritten | derived and noticed |
+| `tests/unit/colour-hex-text.test.ts` | NGNE Sprite Editor | `tests/unit/se-064-preferences.test.ts` | `f681adc` | The "hex colour text" cases only; import from the colour subpath; header comment added | derived and noticed |
+| `tests/unit/colour-oklab.test.ts` | NGNE Sprite Editor | `tests/unit/se-043-oklab.test.ts` | `f681adc` | Import from the colour subpath; the primaries checked to 3 decimals (§4); a same-coordinates case added; comments rewritten | derived and noticed |
 | `tests/unit/licences-build-excluded.test.ts` | NGNE Sprite Editor | `tests/unit/licences-excluded.test.ts` | `f681adc` | The gifenc rule replaced by a fixture rule passed as an option; the bundle built with the helper's plugin | derived and noticed |
 | `tests/unit/licences-build-generator.test.ts` | NGNE Sprite Editor | `tests/unit/licences-generator.test.ts` | `f681adc` | Cases moved to the options form; repository cases for this package | derived and noticed |
 | `tests/unit/licences-build-generator.test.ts` | NGNE Tilemap Editor | `tests/unit/cleanup-licences-generator.test.ts` | `eb07938` | Build-only package and `THIRD-PARTY-LICENSE` cases moved to the options form | derived and noticed |
@@ -74,7 +84,7 @@ Rules for the rows:
 
 | File | Spec given | Implementer given | Not given | Date |
 | --- | --- | --- | --- | --- |
-| `src/colour/oklab.ts` | OKLab matrices and formulas as published in the 2020 post; sRGB transfer functions (IEC 61966-2-1); the behaviour tests | Spec and tests only (EU-004) | The sprite editor's `core/color/oklab.ts` and its history; any code from the post | At EU-004 |
+| `src/colour/oklab.ts` | OKLab matrices M1 and M2 and the cube root, as published in the maths section of the 2020 post (read through an extract of that section only); sRGB transfer functions and primaries (IEC 61966-2-1); the expected values and signatures of the sprite editor's `tests/unit/se-043-oklab.test.ts` at `f681adc` | Spec and tests only (EU-004); test `tests/unit/colour-oklab.test.ts` | The sprite editor's `src/core/color/oklab.ts` and its history; any code from the post, including its linear-sRGB matrix | 2026-11-15 |
 
 ### Audits
 
@@ -88,12 +98,12 @@ Rules for the rows:
 | --- | --- |
 | 2026-11-13 | Stand-in licence text approved for `react-remove-scroll-bar` 2.3.8, whose npm package ships no licence file: the `LICENSE` of its repository at commit `7301c160`, compared byte for byte (decided for the sprite editor; it moves here with the licences build helper) |
 | 2026-11-15 | `src/colour/oklab.ts` is rewritten clean-room in EU-004 from the published matrices and formulas, not moved from the sprite editor, because whether the post's code was read is not known (BRIEF D21) |
+| 2026-11-15 | The OKLab reference values of the sRGB primaries are checked to 3 decimals in `tests/unit/colour-oklab.test.ts`: from the published M1 and the sRGB primaries they differ by up to 1.2e-4, and 5 decimals would need the post's linear-sRGB matrix, which is in its code only. White, black, greys, round trips and clipping stay exact |
 
 ## 5. Open items
 
 - The cut: §2 rows.
 - Before the first deploy and publish: the changes since the audited revision `f39c470` checked
   (licenses.md §6).
-- The clean-room rewrite of `oklab.ts` (§3, EU-004).
 - `THIRD_PARTY_NOTICES.md` for the package: peers are not bundled by the package; the notices
   list what its build ships (none at present) and the stand-in text.
