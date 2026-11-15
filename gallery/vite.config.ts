@@ -55,5 +55,13 @@ export default defineConfig({
     worker: { plugins: () => [licences.workerPlugin] },
     // The CSS is not minified: the minifier rewrites token values (`#ffffff` to `#fff`), and
     // the Tokens entry shows them as tokens.css and DESIGN §3 write them.
-    build: { outDir: "dist", emptyOutDir: true, cssMinify: false },
+    // No module-preload polyfill: the browsers the suite targets preload modules themselves
+    // (SPEC §4), and the bundle then holds no bundler-written code beyond Rolldown's runtime,
+    // which licences.txt lists.
+    build: {
+        outDir: "dist",
+        emptyOutDir: true,
+        cssMinify: false,
+        modulePreload: { polyfill: false },
+    },
 });
