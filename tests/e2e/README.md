@@ -11,6 +11,8 @@ Chromium.
 npx playwright test
 ```
 
+- Server: Playwright builds the package and the gallery site, then serves the site with
+  Vite's preview under its Pages base (`gallery/pages.ts`), as Pages serves it.
 - Port: `PORT` from the environment, otherwise a free one; each checkout or worktree runs on
   its own.
 - Headed or headless: headless by default; `E2E_HEADLESS=0` opens Chrome windows.

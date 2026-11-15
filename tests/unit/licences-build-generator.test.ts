@@ -20,6 +20,7 @@ import {
     runtimePackageDirs,
     strayPackages,
 } from "../../src/build/licences/index.ts";
+import { peerPackageDirs } from "../../src/build/licences/licences.ts";
 import type {
     BundleContext,
     BundleOutput,
@@ -246,6 +247,77 @@ describe("runtimePackageDirs", () => {
         expect(() => runtimePackageDirs(JSON.stringify({ dependencies: {} }), temp)).toThrow(
             LicenceError,
         );
+    });
+});
+
+describe("peerPackageDirs", () => {
+    it("lists the project's peers and every package they require, nested copies included", () => {
+        const project = "peers";
+        for (const name of ["ui", "dom", "shared", "leaf", "tool", "@types/ui"]) {
+            writePackage(project, name, { license: "MIT", main: "index.js" });
+        }
+        writePackage(project, "dom/node_modules/shared", { license: "MIT", main: "index.js" });
+        const lock = JSON.stringify({
+            lockfileVersion: 3,
+            packages: {
+                "": {
+                    name: "library",
+                    peerDependencies: { ui: "1", dom: "1", absent: "1" },
+                    devDependencies: { ui: "1", dom: "1", tool: "1" },
+                },
+                "node_modules/ui": { version: "1.0.0", dev: true, dependencies: { shared: "1" } },
+                "node_modules/dom": {
+                    version: "1.0.0",
+                    dev: true,
+                    dependencies: { shared: "2" },
+                    peerDependencies: { ui: "1", "@types/ui": "1" },
+                },
+                "node_modules/dom/node_modules/shared": {
+                    version: "2.0.0",
+                    dev: true,
+                    optionalDependencies: { leaf: "1" },
+                },
+                "node_modules/shared": { version: "1.0.0", dev: true },
+                "node_modules/leaf": { version: "1.0.0", dev: true },
+                "node_modules/tool": { version: "1.0.0", dev: true },
+                "node_modules/@types/ui": { version: "1.0.0", dev: true },
+            },
+        });
+        const root = join(temp, project);
+        const prefix = root.replace(/\\/g, "/");
+        // `absent` is an optional peer the lockfile does not install; `tool` is no peer's.
+        expect(peerPackageDirs(lock, root)).toEqual([
+            `${prefix}/node_modules/dom`,
+            `${prefix}/node_modules/leaf`,
+            `${prefix}/node_modules/dom/node_modules/shared`,
+            `${prefix}/node_modules/shared`,
+            `${prefix}/node_modules/ui`,
+        ]);
+    });
+
+    it("is empty for a project without peers, such as an app", () => {
+        const lock = JSON.stringify({
+            lockfileVersion: 3,
+            packages: { "": { name: "app" }, "node_modules/a": { version: "1.0.0" } },
+        });
+        expect(peerPackageDirs(lock, temp)).toEqual([]);
+    });
+
+    it("needs a lockfile of version 2 or later", () => {
+        expect(() => peerPackageDirs(JSON.stringify({ dependencies: {} }), temp)).toThrow(
+            LicenceError,
+        );
+    });
+
+    it("gives this repository its peers and theirs", () => {
+        const lock = readFileSync(join(ROOT, "package-lock.json"), "utf8");
+        const names = peerPackageDirs(lock, ROOT).map((dir) => dir.split("/node_modules/").pop());
+        expect(names).toEqual(
+            expect.arrayContaining(["lucide-react", "radix-ui", "react", "react-dom", "zustand"]),
+        );
+        expect(names).toContain("scheduler");
+        expect(names).not.toContain("vite");
+        expect(names).not.toContain("fast-check");
     });
 });
 

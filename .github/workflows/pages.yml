@@ -1,0 +1,50 @@
+name: Gallery
+
+# The gallery (SPEC §12) deployed to this repository's Pages (BRIEF D13): on each `v*` release
+# tag and on a manual dispatch from `main`; never on other pushes. The `github-pages`
+# environment allows `main` and `v*` only.
+
+on:
+    push:
+        tags:
+            - "v*"
+    workflow_dispatch:
+
+permissions:
+    contents: read
+
+concurrency:
+    group: pages
+    cancel-in-progress: false
+
+jobs:
+    build:
+        # A manual dispatch deploys `main` only.
+        if: github.event_name == 'push' || github.ref == 'refs/heads/main'
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: 24
+                  cache: npm
+            - run: npm ci --ignore-scripts
+            # The package's build, then the site's, with licences.txt beside index.html.
+            - run: npm run build:gallery
+            - uses: actions/configure-pages@v5
+            - uses: actions/upload-pages-artifact@v3
+              with:
+                  path: gallery/dist
+
+    deploy:
+        needs: build
+        runs-on: ubuntu-latest
+        permissions:
+            pages: write
+            id-token: write
+        environment:
+            name: github-pages
+            url: ${{ steps.deployment.outputs.page_url }}
+        steps:
+            - id: deployment
+              uses: actions/deploy-pages@v4

@@ -7,6 +7,7 @@ import {
     buildPackageDirs,
     excludedCodeIn,
     packageDirsOf,
+    peerPackageDirs,
     runtimePackageDirs,
     strayPackages,
 } from "./licences.js";
@@ -88,10 +89,11 @@ function javaScriptOf(output: BundleOutput): string {
 /**
  * The open-source licences file of an app (SPEC §11): `licences.txt` beside `index.html`,
  * with the licence of every package whose code the build bundled, each of them a runtime
- * dependency of package-lock.json, and of the build-only packages. The development server
- * answers the same address with the runtime dependencies' licences and the build-only ones.
- * The build fails on a package without an allowed licence or a licence text, on bundled code
- * of a package that is not a runtime dependency, and on excluded code found in the bundle.
+ * dependency of package-lock.json or one of the project's peer dependencies and the packages
+ * they require (a library's own site), and of the build-only packages. The development server
+ * answers the same address with the licences of those runtime packages and the build-only
+ * ones. The build fails on a package without an allowed licence or a licence text, on bundled
+ * code of a package that is neither, and on excluded code found in the bundle.
  */
 export function generateLicences(options: LicencesOptions): LicencesPlugins {
     const { root } = options;
@@ -101,8 +103,15 @@ export function generateLicences(options: LicencesOptions): LicencesPlugins {
     /** The ids of the modules the build's chunks render, the web workers' included. */
     const bundledModules = new Set<string>();
 
-    const runtime = () =>
-        runtimePackageDirs(readFileSync(join(root, "package-lock.json"), "utf8"), root);
+    /** The runtime packages a build may bundle: the runtime dependencies, the peers with theirs. */
+    const runtime = () => {
+        const lock = readFileSync(join(root, "package-lock.json"), "utf8");
+        return packageDirsOf(
+            [...runtimePackageDirs(lock, root), ...peerPackageDirs(lock, root)].map(
+                (dir) => `${dir}/package.json`,
+            ),
+        );
+    };
 
     /** `dirs` and the build-only packages, in order of name. */
     const withBuildPackages = (dirs: readonly string[]) =>
