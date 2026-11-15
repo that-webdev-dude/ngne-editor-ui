@@ -45,7 +45,7 @@ export function benchmarkNames(): string[] {
     return readdirSync(PERF_DIR)
         .filter((file) => file.endsWith(".perf.ts"))
         .map((file) => file.slice(0, -".perf.ts".length))
-        .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+        .sort((a, b) => Number(a > b) - Number(a < b));
 }
 
 /** The latency fields the runner reads from a task of Vitest's JSON report, in milliseconds. */

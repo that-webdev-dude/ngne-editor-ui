@@ -33,7 +33,8 @@ function powerPlan(): string {
             // "Power Scheme GUID: <guid>  (Balanced)"
             const scheme = output("powercfg", ["/getactivescheme"]);
             if (scheme === null) return "unknown";
-            return /\(([^)]+)\)\s*$/.exec(scheme)?.[1] ?? scheme;
+            const open = scheme.lastIndexOf("(");
+            return open !== -1 && scheme.endsWith(")") ? scheme.slice(open + 1, -1) : scheme;
         }
         case "linux": {
             const profile = fileText("/sys/firmware/acpi/platform_profile");
@@ -47,7 +48,8 @@ function powerPlan(): string {
         case "darwin": {
             const settings = output("pmset", ["-g"]);
             const lowPower = settings && /lowpowermode\s+(\d)/.exec(settings)?.[1];
-            return lowPower ? `low power mode ${lowPower === "1" ? "on" : "off"}` : "unknown";
+            if (!lowPower) return "unknown";
+            return `low power mode ${lowPower === "1" ? "on" : "off"}`;
         }
         default:
             return "unknown";
