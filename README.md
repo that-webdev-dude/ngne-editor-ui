@@ -80,14 +80,16 @@ existing editor onto the package, or to a newer version of it: [docs/MIGRATION.m
 
 ## Documents
 
-| Doc | Role |
-| --- | --- |
-| [docs/BRIEF.md](docs/BRIEF.md) | Scope and decisions; wins when two docs disagree |
-| [docs/SPEC.md](docs/SPEC.md) | Architecture, public API, configuration, versioning |
-| [docs/DESIGN.md](docs/DESIGN.md) | The suite design canon every editor follows |
-| [docs/MIGRATION.md](docs/MIGRATION.md) | Adopting the package in an editor, and upgrading it |
-| [docs/PROVENANCE.md](docs/PROVENANCE.md) | Where the code comes from; licence audits |
-| [CHANGELOG.md](CHANGELOG.md) | Release notes |
+| Doc                                      | Role                                                |
+| ---------------------------------------- | --------------------------------------------------- |
+| [docs/README.md](docs/README.md)         | Doc index and reading order                         |
+| [docs/BRIEF.md](docs/BRIEF.md)           | Scope and decisions; wins when two docs disagree    |
+| [docs/SPEC.md](docs/SPEC.md)             | Architecture, public API, configuration, versioning |
+| [docs/DESIGN.md](docs/DESIGN.md)         | The suite design canon every editor follows         |
+| [docs/MIGRATION.md](docs/MIGRATION.md)   | Adopting the package in an editor, and upgrading it |
+| [docs/PROVENANCE.md](docs/PROVENANCE.md) | Where the code comes from; licence audits           |
+| [CHANGELOG.md](CHANGELOG.md)             | Release notes                                       |
+| [RULES.md](RULES.md)                     | Code rules for every contributor                    |
 
 The gallery, deployed from each release tag, shows every component in both themes.
 

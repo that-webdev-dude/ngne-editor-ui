@@ -89,6 +89,19 @@ The package has no frame budgets of its own; it must not move the apps' (BRIEF ย
 - Peer dependencies, exact ranges matching SUITE ยง5 of the apps: `react`, `react-dom`,
   `radix-ui`, `lucide-react`, `zustand`. No runtime dependencies.
 - `sideEffects`: CSS files only.
+- Module resolution `NodeNext`: relative imports name the built file (`./x.js`), so the
+  `dist/` tree runs unbundled in Node (build helpers) and in the apps' bundlers alike. Three
+  `tsc` projects build it, one per runtime: UI, Model and Colour with the DOM library; Worker
+  with the WebWorker library; Build with Node's types.
+- CSS entry: `dist/styles.css` holds `src/styles/tokens.css`, then `src/styles/base.css`, then
+  every other stylesheet under `src/` in path order (UTF-16 code units), each after a comment
+  naming it. A stylesheet joins by its path; no list is edited. Package modules import no CSS.
+- Development toolchain, pinned exactly: `@axe-core/playwright` 4.13.0, `@eslint/js` 10.0.1,
+  `@playwright/test` 1.64.0, `@types/node` 24.19.2, `@types/react` 19.3.0, `@types/react-dom`
+  19.3.0, `@vitejs/plugin-react` 6.1.2, `@vitest/coverage-v8` 5.0.3, `eslint` 10.12.0,
+  `eslint-plugin-react-hooks` 7.1.1, `fast-check` 4.10.2, `globals` 17.13.0, `prettier`
+  3.9.10, `typescript` 5.9.3, `typescript-eslint` 8.71.1, `vite` 8.3.4, `vitest` 5.0.3, and the
+  peers at their pinned versions (owner approval 2026-11-15).
 
 | Subpath | Layer | Contents |
 | --- | --- | --- |

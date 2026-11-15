@@ -13,8 +13,8 @@ sources are never copied, ported or translated.
 
 | Upstream | URL | Version | Licence | Class | Used in |
 | --- | --- | --- | --- | --- | --- |
-| NGNE Sprite Editor (owner's own code) | <https://github.com/that-webdev-dude/ngne-sprite-editor> | The cut commit (§2) | MIT, Copyright (c) 2026 Fabio Barracano | Permissive, same holder | Every file of the first version |
-| NGNE Tilemap Editor (owner's own code) | <https://github.com/that-webdev-dude/ngne-tilemap-editor> | The commit of each taken fix (§2) | MIT, Copyright (c) 2026 Fabio Barracano | Permissive, same holder | The fixes of BRIEF D14 |
+| NGNE Sprite Editor (owner's own code) | <https://github.com/that-webdev-dude/ngne-sprite-editor> | `f681adc`, the cut commit (§2) | MIT, Copyright (c) 2026 Fabio Barracano | Permissive, same holder | Every file of the first version |
+| NGNE Tilemap Editor (owner's own code) | <https://github.com/that-webdev-dude/ngne-tilemap-editor> | `eb07938`, the commit of the taken fixes (§2) | MIT, Copyright (c) 2026 Fabio Barracano | Permissive, same holder | The fixes of BRIEF D14 |
 | OKLab (Björn Ottosson, "A perceptual color space for image processing", 2020) | <https://bottosson.github.io/posts/oklab/> | 2020 post | Matrices and formulas only (published constants); the post's code is not used | Behaviour-dictated, clean-room rewrite (D21) | `src/colour/oklab.ts` |
 | WCAG 2.1 relative luminance and contrast ratio | <https://www.w3.org/TR/WCAG21/> | 2.1 | W3C document (formula only) | Behaviour-dictated | `src/colour/contrast.ts` |
 | sRGB transfer functions (IEC 61966-2-1) | — | 1999 | Standard (formula only) | Behaviour-dictated | `src/colour/oklab.ts`, `src/colour/contrast.ts` |
@@ -31,6 +31,14 @@ Filled by the cut (BRIEF D8, D14): one row per file, written in the cut change.
 
 | Package file | Source repository | Source path | Source commit | Change at the cut | Class |
 | --- | --- | --- | --- | --- | --- |
+| `src/build/licence-texts/react-remove-scroll-bar.txt` | NGNE Sprite Editor | `scripts/licence-texts/react-remove-scroll-bar.txt` | `f681adc` | none | pending |
+| `src/build/licences/licences.ts` | NGNE Sprite Editor | `scripts/licences.ts` | `f681adc` | App lists made options (allowlist, excluded code, stand-in directories, licence and notices paths); package and module order by code unit instead of locale; comment references rewritten to this package's docs | pending |
+| `src/build/licences/licences.ts` | NGNE Tilemap Editor | `scripts/licences.ts` | `eb07938` | Tilemap fix taken: build-only packages (`BUILD_PACKAGES`, now an option) and `THIRD-PARTY-LICENSE` files; test `licences-build-generator` (`buildPackageDirs`, `readPackageLicence`) | pending |
+| `src/build/licences/plugin.ts` | NGNE Sprite Editor | `vite.config.ts` | `f681adc` | The app's module collection, excluded-code check, stray check and development-server route moved into `generateLicences(options)` | pending |
+| `src/build/licences/plugin.ts` | NGNE Tilemap Editor | `vite.config.ts` | `eb07938` | Tilemap fix taken: build-only packages added to the listed packages (`withBuildPackages`); test `licences-build-generator` (`buildPackageDirs`) | pending |
+| `tests/unit/licences-build-excluded.test.ts` | NGNE Sprite Editor | `tests/unit/licences-excluded.test.ts` | `f681adc` | The gifenc rule replaced by a fixture rule passed as an option; the bundle built with the helper's plugin | pending |
+| `tests/unit/licences-build-generator.test.ts` | NGNE Sprite Editor | `tests/unit/licences-generator.test.ts` | `f681adc` | Cases moved to the options form; repository cases for this package | pending |
+| `tests/unit/licences-build-generator.test.ts` | NGNE Tilemap Editor | `tests/unit/cleanup-licences-generator.test.ts` | `eb07938` | Build-only package and `THIRD-PARTY-LICENSE` cases moved to the options form | pending |
 
 Rules for the rows:
 
