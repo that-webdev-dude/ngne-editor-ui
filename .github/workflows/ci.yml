@@ -1,0 +1,82 @@
+name: CI
+
+on:
+    push:
+    pull_request:
+    workflow_dispatch:
+
+permissions:
+    contents: read
+
+jobs:
+    check:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: 24
+                  cache: npm
+            - run: npm ci --ignore-scripts
+            - run: npm run check
+
+    # The gallery's E2E specs in the runner's installed Google Chrome, headed under xvfb and
+    # headless (tests/e2e/README.md).
+    e2e:
+        name: e2e (${{ matrix.mode }})
+        runs-on: ubuntu-latest
+        strategy:
+            fail-fast: false
+            matrix:
+                include:
+                    - mode: headed
+                      headless: "0"
+                    - mode: headless
+                      headless: "1"
+        steps:
+            - uses: actions/checkout@v4
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: 24
+                  cache: npm
+            - run: npm ci --ignore-scripts
+            - name: Install xvfb
+              if: matrix.headless == '0'
+              run: sudo apt-get update && sudo apt-get install -y xvfb xauth
+            - name: End-to-end tests
+              env:
+                  E2E_HEADLESS: ${{ matrix.headless }}
+              run: |
+                  if [ "$E2E_HEADLESS" = "0" ]; then
+                      xvfb-run -a -s "-screen 0 2560x1440x24" npx playwright test --pass-with-no-tests
+                  else
+                      npx playwright test --pass-with-no-tests
+                  fi
+            - name: Upload end-to-end artifacts
+              if: failure()
+              uses: actions/upload-artifact@v4
+              with:
+                  name: e2e-results-${{ matrix.mode }}
+                  path: test-results
+                  if-no-files-found: ignore
+
+    # SonarQube Cloud, CI-based analysis with the unit tests' coverage (sonar-project.properties).
+    # Automatic Analysis is off for the project; with it on, this scan fails.
+    sonar:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  # Full history, for the analysis of new code and blame.
+                  fetch-depth: 0
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: 24
+                  cache: npm
+            - run: npm ci --ignore-scripts
+            - name: Unit tests with coverage
+              run: npm run test:coverage
+            - name: SonarQube Cloud scan
+              uses: SonarSource/sonarqube-scan-action@59202af334b4ba7b5db01b701b8e79f8b3bef0f4 # v8.5.0
+              env:
+                  SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}

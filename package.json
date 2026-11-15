@@ -1,0 +1,136 @@
+{
+    "name": "@ngne/editor-ui",
+    "version": "0.0.0",
+    "description": "Shared interface of the NGNE editor suite: tokens, primitives, shell, commands and keys",
+    "license": "MIT",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/that-webdev-dude/ngne-editor-ui.git"
+    },
+    "type": "module",
+    "engines": {
+        "node": ">=24"
+    },
+    "sideEffects": [
+        "**/*.css"
+    ],
+    "files": [
+        "dist",
+        "LICENSE",
+        "THIRD_PARTY_NOTICES.md",
+        "README.md"
+    ],
+    "exports": {
+        ".": {
+            "types": "./dist/ui/index.d.ts",
+            "default": "./dist/ui/index.js"
+        },
+        "./styles.css": "./dist/styles.css",
+        "./styles/check": {
+            "types": "./dist/build/styles/index.d.ts",
+            "default": "./dist/build/styles/index.js"
+        },
+        "./primitives": {
+            "types": "./dist/ui/primitives/index.d.ts",
+            "default": "./dist/ui/primitives/index.js"
+        },
+        "./focus": {
+            "types": "./dist/ui/focus/index.d.ts",
+            "default": "./dist/ui/focus/index.js"
+        },
+        "./messages": {
+            "types": "./dist/ui/messages/index.d.ts",
+            "default": "./dist/ui/messages/index.js"
+        },
+        "./shell": {
+            "types": "./dist/ui/shell/index.d.ts",
+            "default": "./dist/ui/shell/index.js"
+        },
+        "./commands": {
+            "types": "./dist/ui/commands/index.d.ts",
+            "default": "./dist/ui/commands/index.js"
+        },
+        "./overlay": {
+            "types": "./dist/model/overlay/index.d.ts",
+            "default": "./dist/model/overlay/index.js"
+        },
+        "./platform": {
+            "types": "./dist/ui/platform/index.d.ts",
+            "default": "./dist/ui/platform/index.js"
+        },
+        "./pwa": {
+            "types": "./dist/ui/pwa/index.d.ts",
+            "default": "./dist/ui/pwa/index.js"
+        },
+        "./pwa/worker": {
+            "types": "./dist/worker/index.d.ts",
+            "default": "./dist/worker/index.js"
+        },
+        "./about": {
+            "types": "./dist/ui/about/index.d.ts",
+            "default": "./dist/ui/about/index.js"
+        },
+        "./about/build": {
+            "types": "./dist/build/about/index.d.ts",
+            "default": "./dist/build/about/index.js"
+        },
+        "./licences": {
+            "types": "./dist/ui/licences/index.d.ts",
+            "default": "./dist/ui/licences/index.js"
+        },
+        "./licences/build": {
+            "types": "./dist/build/licences/index.d.ts",
+            "default": "./dist/build/licences/index.js"
+        },
+        "./colour": {
+            "types": "./dist/colour/index.d.ts",
+            "default": "./dist/colour/index.js"
+        },
+        "./gallery": {
+            "types": "./dist/ui/gallery/index.d.ts",
+            "default": "./dist/ui/gallery/index.js"
+        }
+    },
+    "scripts": {
+        "build": "node scripts/clean.ts && tsc -p tsconfig.lib.json && tsc -p tsconfig.worker.json && tsc -p tsconfig.build.json && node scripts/build-assets.ts",
+        "typecheck": "tsc -p tsconfig.lib.json --noEmit && tsc -p tsconfig.worker.json --noEmit && tsc -p tsconfig.build.json --noEmit && tsc -p tsconfig.json",
+        "lint": "eslint src tests scripts eslint eslint.config.js playwright.config.ts vitest.config.ts",
+        "format": "prettier --write .github eslint scripts src tests .prettierrc.json CHANGELOG.md README.md RULES.md THIRD_PARTY_NOTICES.md eslint.config.js package.json playwright.config.ts tsconfig*.json vitest.config.ts",
+        "format:check": "prettier --check .github eslint scripts src tests .prettierrc.json CHANGELOG.md README.md RULES.md THIRD_PARTY_NOTICES.md eslint.config.js package.json playwright.config.ts tsconfig*.json vitest.config.ts",
+        "test": "vitest run",
+        "test:coverage": "vitest run --coverage",
+        "test:e2e": "playwright test",
+        "check": "npm run typecheck && npm run lint && npm run format:check && npm run test && npm run build"
+    },
+    "peerDependencies": {
+        "lucide-react": "1.55.0",
+        "radix-ui": "1.7.0",
+        "react": "19.3.0",
+        "react-dom": "19.3.0",
+        "zustand": "5.0.15"
+    },
+    "devDependencies": {
+        "@axe-core/playwright": "4.13.0",
+        "@eslint/js": "10.0.1",
+        "@playwright/test": "1.64.0",
+        "@types/node": "24.19.2",
+        "@types/react": "19.3.0",
+        "@types/react-dom": "19.3.0",
+        "@vitejs/plugin-react": "6.1.2",
+        "@vitest/coverage-v8": "5.0.3",
+        "eslint": "10.12.0",
+        "eslint-plugin-react-hooks": "7.1.1",
+        "fast-check": "4.10.2",
+        "globals": "17.13.0",
+        "lucide-react": "1.55.0",
+        "prettier": "3.9.10",
+        "radix-ui": "1.7.0",
+        "react": "19.3.0",
+        "react-dom": "19.3.0",
+        "typescript": "5.9.3",
+        "typescript-eslint": "8.71.1",
+        "vite": "8.3.4",
+        "vitest": "5.0.3",
+        "zustand": "5.0.15"
+    }
+}
