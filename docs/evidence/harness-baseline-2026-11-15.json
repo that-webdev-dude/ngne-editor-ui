@@ -1,0 +1,29 @@
+{
+    "benchmark": "harness-baseline",
+    "date": "2026-11-15",
+    "commit": "f39ea54",
+    "workingTreeClean": true,
+    "machine": {
+        "cpu": "12th Gen Intel(R) Core(TM) i7-12650H",
+        "logicalCores": 16,
+        "memoryGb": 16,
+        "os": "win32 10.0.26200 x64",
+        "node": "v24.15.0",
+        "powerPlan": "Balanced"
+    },
+    "unit": "ms",
+    "reportOnly": true,
+    "tasks": [
+        {
+            "name": "build the synthetic module maps",
+            "meanMs": 0.0808202198157433,
+            "p50Ms": 0.07380000000000564,
+            "p75Ms": 0.07770000000004984,
+            "p99Ms": 0.2391270000000009,
+            "minMs": 0.06989999999996144,
+            "maxMs": 1.4502999999999702,
+            "rmePercent": 0.6941604310083999,
+            "samples": 12374
+        }
+    ]
+}
