@@ -94,12 +94,13 @@
     "scripts": {
         "build": "node scripts/clean.ts && tsc -p tsconfig.lib.json && tsc -p tsconfig.worker.json && tsc -p tsconfig.build.json && node scripts/build-assets.ts",
         "typecheck": "tsc -p tsconfig.lib.json --noEmit && tsc -p tsconfig.worker.json --noEmit && tsc -p tsconfig.build.json --noEmit && tsc -p tsconfig.json",
-        "lint": "eslint src tests scripts gallery eslint eslint.config.js playwright.config.ts vitest.config.ts",
-        "format": "prettier --write .github gallery eslint scripts src tests .prettierrc.json CHANGELOG.md README.md RULES.md THIRD_PARTY_NOTICES.md eslint.config.js package.json playwright.config.ts tsconfig*.json vitest.config.ts",
-        "format:check": "prettier --check .github gallery eslint scripts src tests .prettierrc.json CHANGELOG.md README.md RULES.md THIRD_PARTY_NOTICES.md eslint.config.js package.json playwright.config.ts tsconfig*.json vitest.config.ts",
+        "lint": "eslint src tests scripts gallery eslint eslint.config.js playwright.config.ts vitest.config.ts vitest.perf.config.ts",
+        "format": "prettier --write .github gallery eslint scripts src tests .prettierrc.json CHANGELOG.md README.md RULES.md THIRD_PARTY_NOTICES.md eslint.config.js package.json playwright.config.ts tsconfig*.json vitest.config.ts vitest.perf.config.ts",
+        "format:check": "prettier --check .github gallery eslint scripts src tests .prettierrc.json CHANGELOG.md README.md RULES.md THIRD_PARTY_NOTICES.md eslint.config.js package.json playwright.config.ts tsconfig*.json vitest.config.ts vitest.perf.config.ts",
         "test": "vitest run",
         "test:coverage": "vitest run --coverage",
         "test:e2e": "playwright test",
+        "perf": "node tests/perf/run.ts",
         "check": "npm run typecheck && npm run lint && npm run format:check && npm run test && npm run build",
         "gallery": "npm run build && vite --config gallery/vite.config.ts",
         "build:gallery": "npm run build && vite build --config gallery/vite.config.ts"
