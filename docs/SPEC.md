@@ -304,7 +304,7 @@ closing-popover hook, as the sprite editor at the cut.
   `licences.txt` beside the page. The switch is the gallery's own and stores nothing.
 - The site under `gallery/` imports the package only through its subpaths and runs the built
   package; its CSS is not minified, so the Tokens entry shows values as `tokens.css` writes
-  them.
+  them, and its build adds no module-preload polyfill.
 
 ## 13. Versioning
 
