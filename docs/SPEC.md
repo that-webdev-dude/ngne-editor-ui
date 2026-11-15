@@ -66,7 +66,7 @@ The package has no frame budgets of its own; it must not move the apps' (BRIEF �
 | App bundle growth at migration | ≤ 2% of the production bundle | Build size before and after, per app |
 | App budget rows at migration | No row of the app's ENGINE §6 / SPEC §14 moves beyond its noise | The app's benchmarks, reference hardware, by the owner |
 | Command refresh | A store change re-renders only components that read a command whose `enabled()` or `title()` result changed | Render-count test on the gallery |
-| Startup | `createEditorUi` with 300 commands and 30 modules per other registry takes ≤ 5 ms | Node benchmark, report-only on CI |
+| Startup | `createEditorUi` with 300 commands and 30 modules per other registry takes ≤ 5 ms | Node benchmark `tests/perf/startup-create-editor-ui.perf.ts` over the synthetic module maps of `tests/perf/fixtures/editorUiModules.ts`, report-only on CI |
 
 ## 3. Quality
 

@@ -60,6 +60,25 @@ jobs:
                   path: test-results
                   if-no-files-found: ignore
 
+    # The Node benchmarks, one at a time, report-only (docs/SPEC.md §2, tests/perf/README.md):
+    # the job prints their numbers and never fails the workflow.
+    perf:
+        runs-on: ubuntu-latest
+        continue-on-error: true
+        steps:
+            - uses: actions/checkout@v4
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: 24
+                  cache: npm
+            - run: npm ci --ignore-scripts
+            - name: Benchmarks (report-only)
+              run: |
+                  for file in tests/perf/*.perf.ts; do
+                      name="$(basename "$file" .perf.ts)"
+                      npm run perf -- "$name" || echo "::warning::Benchmark $name did not finish."
+                  done
+
     # SonarQube Cloud, CI-based analysis with the unit tests' coverage (sonar-project.properties).
     # Automatic Analysis is off for the project; with it on, this scan fails.
     sonar:
