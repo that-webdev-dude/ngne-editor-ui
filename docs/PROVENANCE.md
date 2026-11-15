@@ -36,9 +36,16 @@ Filled by the cut (BRIEF D8, D14): one row per file, written in the cut change.
 | `src/build/licences/licences.ts` | NGNE Tilemap Editor | `scripts/licences.ts` | `eb07938` | Tilemap fix taken: build-only packages (`BUILD_PACKAGES`, now an option) and `THIRD-PARTY-LICENSE` files; test `licences-build-generator` (`buildPackageDirs`, `readPackageLicence`) | pending |
 | `src/build/licences/plugin.ts` | NGNE Sprite Editor | `vite.config.ts` | `f681adc` | The app's module collection, excluded-code check, stray check and development-server route moved into `generateLicences(options)` | pending |
 | `src/build/licences/plugin.ts` | NGNE Tilemap Editor | `vite.config.ts` | `eb07938` | Tilemap fix taken: build-only packages added to the listed packages (`withBuildPackages`); test `licences-build-generator` (`buildPackageDirs`) | pending |
+| `src/styles/base.css` | NGNE Sprite Editor | `src/ui/styles/base.css` | `f681adc` | Comment references rewritten to this package's docs; a header comment added | pending |
+| `src/styles/tokens.css` | NGNE Sprite Editor | `src/ui/styles/tokens.css` | `f681adc` | Comment references rewritten to this package's docs | pending |
+| `src/ui/gallery/Gallery.tsx` | NGNE Sprite Editor | `src/ui/gallery/Gallery.tsx` | `f681adc` | Frame only: the header and one section per entry kept, the primitive demos, theme store and toasts dropped; entries from a list (`entries.ts`); the theme switch made the frame's own radio group; the licences link and input modality added | pending |
+| `src/ui/gallery/gallery.css` | NGNE Sprite Editor | `src/ui/gallery/gallery.css` | `f681adc` | Frame rules kept, demo rules dropped; theme switch, licences link and Tokens entry rules added | pending |
+| `tests/e2e/gallery.spec.ts` | NGNE Sprite Editor | `tests/e2e/se-006-gallery.spec.ts` | `f681adc` | The axe audit and its on-screen check kept; the primitive, theme-store and keyboard cases left to their entries; Tokens entry, window-size and licences-link cases written for the package | pending |
 | `tests/unit/licences-build-excluded.test.ts` | NGNE Sprite Editor | `tests/unit/licences-excluded.test.ts` | `f681adc` | The gifenc rule replaced by a fixture rule passed as an option; the bundle built with the helper's plugin | pending |
 | `tests/unit/licences-build-generator.test.ts` | NGNE Sprite Editor | `tests/unit/licences-generator.test.ts` | `f681adc` | Cases moved to the options form; repository cases for this package | pending |
 | `tests/unit/licences-build-generator.test.ts` | NGNE Tilemap Editor | `tests/unit/cleanup-licences-generator.test.ts` | `eb07938` | Build-only package and `THIRD-PARTY-LICENSE` cases moved to the options form | pending |
+| `tests/unit/tokens-canon.test.ts` | NGNE Sprite Editor | `tests/unit/se-006-tokens.test.ts` | `f681adc` | Token path moved; DESIGN §3.1 read from its own section; the contrast pairs checked against the canon's wording; the raw-colour scan made a function, run on fixture trees and over `gallery/`; the stylesheet list reduced to this package's; comment references rewritten | pending |
+| `tests/unit/tokens-canon.test.ts` | NGNE Tilemap Editor | `tests/unit/te-003-tokens.test.ts` | `eb07938` | Tilemap case taken: the dark values the apps read (`--bg-workspace`, `--bg-panel`, `--accent`), cited to DESIGN §3.1 and §10 | pending |
 
 Rules for the rows:
 

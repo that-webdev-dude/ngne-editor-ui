@@ -101,7 +101,9 @@ The package has no frame budgets of its own; it must not move the apps' (BRIEF �
   19.3.0, `@vitejs/plugin-react` 6.1.2, `@vitest/coverage-v8` 5.0.3, `eslint` 10.12.0,
   `eslint-plugin-react-hooks` 7.1.1, `fast-check` 4.10.2, `globals` 17.13.0, `prettier`
   3.9.10, `typescript` 5.9.3, `typescript-eslint` 8.71.1, `vite` 8.3.4, `vitest` 5.0.3, and the
-  peers at their pinned versions (owner approval 2026-11-15).
+  peers at their pinned versions (owner approval 2026-11-15). `playwright-core` is held at the
+  version of `@playwright/test` by an `overrides` entry, so axe and the test runner share one
+  copy.
 
 | Subpath | Layer | Contents |
 | --- | --- | --- |
@@ -286,7 +288,10 @@ closing-popover hook, as the sprite editor at the cut.
   outside the stray check (rolldown), excluded-code rules (gifenc's quantizer in the sprite
   editor), licence allowlist, stand-in licence texts. It fails on a bundled package missing
   from the list, a listed package no longer bundled, a missing licence text, a licence outside
-  the allowlist, or excluded code found in the bundle.
+  the allowlist, or excluded code found in the bundle. A build may bundle the lockfile's
+  runtime dependencies and the project's peer dependencies with every package they require
+  (a library's own site, such as this repository's gallery; an app has no peers); code of any
+  other package fails it.
 - The approved stand-in text for `react-remove-scroll-bar` 2.3.8 ships with the helper.
 
 ## 12. Gallery
@@ -294,6 +299,12 @@ closing-popover hook, as the sprite editor at the cut.
 - Renders every export of §4 in both themes, with the app's own entries appended when an app
   mounts it (`<Gallery entries={…} />`).
 - This repository's Pages site serves the gallery from each release tag (BRIEF D13).
+- The frame shows one theme at a time, switched in its header for the whole document (so
+  surfaces rendered outside the frame follow it), with one section per entry and a link to
+  `licences.txt` beside the page. The switch is the gallery's own and stores nothing.
+- The site under `gallery/` imports the package only through its subpaths and runs the built
+  package; its CSS is not minified, so the Tokens entry shows values as `tokens.css` writes
+  them.
 
 ## 13. Versioning
 

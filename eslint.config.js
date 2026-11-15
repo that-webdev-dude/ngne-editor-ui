@@ -10,7 +10,14 @@ const srcDir = fileURLToPath(new URL("src/", import.meta.url));
 
 export default defineConfig(
     {
-        ignores: ["dist", "node_modules", "test-results", "playwright-report", "coverage"],
+        ignores: [
+            "dist",
+            "gallery/dist",
+            "node_modules",
+            "test-results",
+            "playwright-report",
+            "coverage",
+        ],
     },
     js.configs.recommended,
     tseslint.configs.recommended,

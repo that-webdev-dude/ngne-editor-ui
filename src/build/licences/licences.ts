@@ -310,6 +310,66 @@ export function buildPackageDirs(root: string, buildPackages: readonly string[])
     });
 }
 
+/** A package entry of a lockfile, as far as `peerPackageDirs` reads it. */
+interface LockEntry {
+    dependencies?: Record<string, string>;
+    optionalDependencies?: Record<string, string>;
+    peerDependencies?: Record<string, string>;
+}
+
+/**
+ * Where the lockfile installs the package `name` that the package at `from` ("" for the
+ * project, "node_modules/a", …) requires: its own `node_modules` first, then each enclosing
+ * one, as Node resolves it. Null when the lockfile has none (an optional peer left out).
+ */
+function installedFrom(
+    packages: Record<string, LockEntry>,
+    from: string,
+    name: string,
+): string | null {
+    let base = from;
+    for (;;) {
+        const path = base === "" ? `node_modules/${name}` : `${base}/node_modules/${name}`;
+        if (path in packages) return path;
+        if (base === "") return null;
+        const at = base.lastIndexOf("/node_modules/");
+        base = at < 0 ? "" : base.slice(0, at);
+    }
+}
+
+/**
+ * The project's peer dependencies and every package they require, from a `package-lock.json`
+ * (lockfile version 2 or 3), as directories under `root` in order of name, without type-only
+ * packages. A library installs its peers as development dependencies, and its own site (the
+ * gallery, SPEC §12) bundles them; an app has no peers, so this is empty for it.
+ */
+export function peerPackageDirs(lockText: string, root: string): string[] {
+    const lock = JSON.parse(lockText) as { packages?: Record<string, LockEntry> };
+    const packages = lock.packages;
+    if (!packages) throw new LicenceError("package-lock.json has no `packages` (lockfile v2+).");
+    const found = new Set<string>();
+    const pending: [string, string][] = Object.keys(packages[""]?.peerDependencies ?? {}).map(
+        (name) => ["", name],
+    );
+    for (let next = pending.pop(); next; next = pending.pop()) {
+        const path = installedFrom(packages, ...next);
+        if (path === null || found.has(path)) continue;
+        found.add(path);
+        const entry = packages[path] ?? {};
+        for (const names of [
+            entry.dependencies,
+            entry.optionalDependencies,
+            entry.peerDependencies,
+        ]) {
+            for (const name of Object.keys(names ?? {})) pending.push([path, name]);
+        }
+    }
+    const dirs = [...found]
+        .map((path) => `${trimRoot(root)}/${path}`)
+        .filter((dir) => !typesOnly(dir));
+    return packageDirsOf(dirs.map((dir) => `${dir}/package.json`));
+}
+
 function typesOnly(dir: string): boolean {
     const name = nameFromDir(dir);
     if (name.startsWith("@types/")) return true;

@@ -1,0 +1,191 @@
+/* The gallery (SPEC §12): its frame, then the Tokens entry. Tokens only (SPEC §9.2). */
+.gallery {
+    height: 100%;
+    overflow-y: auto;
+    background: var(--bg-panel);
+}
+
+.gallery__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-16);
+    min-height: 36px;
+    padding: 0 var(--space-16);
+    border-bottom: var(--border-width) solid var(--border);
+}
+
+.gallery__heading {
+    font-size: var(--font-size-title);
+    font-weight: var(--font-weight-strong);
+}
+
+.gallery__actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-16);
+}
+
+.gallery__themes {
+    display: flex;
+    gap: var(--space-8);
+    margin: 0;
+    padding: 0;
+    border: 0;
+}
+
+.gallery__theme {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+    height: var(--control-height);
+}
+
+.gallery__theme input {
+    margin: 0;
+    accent-color: var(--accent);
+}
+
+.gallery__link {
+    display: inline-flex;
+    align-items: center;
+    height: var(--control-height);
+    color: var(--text);
+    text-decoration: underline;
+    text-underline-offset: var(--space-2);
+}
+
+.gallery__entries {
+    display: flex;
+    flex-direction: column;
+}
+
+.gallery__entry {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-12);
+    min-width: 0;
+    padding: var(--space-12) var(--space-16) var(--space-16);
+    border-bottom: var(--border-width) solid var(--border);
+}
+
+.gallery__title {
+    color: var(--text-muted);
+    font-size: var(--font-size-label);
+    font-weight: var(--font-weight-strong);
+}
+
+/* Tokens entry (DESIGN §3) */
+.gallery-tokens {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: var(--space-16) var(--space-24);
+}
+
+.gallery-tokens__group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-8);
+    min-width: 0;
+}
+
+.gallery-tokens__heading {
+    font-weight: var(--font-weight-strong);
+}
+
+.gallery-tokens__colours,
+.gallery-tokens__list,
+.gallery-tokens__shapes {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    list-style: none;
+}
+
+.gallery-tokens__shapes {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: var(--space-16);
+}
+
+.gallery-tokens__colour,
+.gallery-tokens__fact,
+.gallery-tokens__pair {
+    display: flex;
+    align-items: center;
+    gap: var(--space-8);
+    min-width: 0;
+    min-height: var(--control-height);
+}
+
+.gallery-tokens__shape {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-8);
+    min-width: 120px;
+}
+
+.gallery-tokens__pair {
+    align-self: stretch;
+}
+
+.gallery-tokens__shape > .gallery-tokens__value {
+    margin-left: 0;
+    text-align: left;
+}
+
+.gallery-tokens__name {
+    font: inherit;
+}
+
+.gallery-tokens__value {
+    min-width: 0;
+    margin-left: auto;
+    color: var(--text-muted);
+    text-align: right;
+    overflow-wrap: anywhere;
+}
+
+.gallery-tokens__swatch {
+    flex: none;
+    width: var(--control-height);
+    height: var(--control-height);
+    border: var(--border-width) solid var(--border-strong);
+    border-radius: var(--radius-control);
+}
+
+.gallery-tokens__sample {
+    flex: none;
+}
+
+.gallery-tokens__slot {
+    display: flex;
+    flex: none;
+    width: var(--space-24);
+}
+
+.gallery-tokens__space {
+    flex: none;
+    height: var(--space-8);
+    background: var(--border-input);
+}
+
+.gallery-tokens__box {
+    width: 48px;
+    height: 32px;
+    background: var(--bg-raised);
+    border: var(--border-width) solid var(--border-strong);
+}
+
+.gallery-tokens__box--elevation {
+    border-color: var(--border);
+    border-radius: var(--radius-surface);
+    box-shadow: var(--elevation);
+}
+
+.gallery-tokens__box--focus {
+    border-radius: var(--radius-control);
+    outline: var(--focus-ring-width) solid var(--accent);
+    outline-offset: var(--focus-ring-offset);
+}

@@ -58,7 +58,7 @@ const API: Record<string, readonly string[]> = {
         "strayPackages",
     ],
     "@ngne/editor-ui/colour": [],
-    "@ngne/editor-ui/gallery": [],
+    "@ngne/editor-ui/gallery": ["Gallery"],
 };
 
 type Target = string | { types: string; default: string };

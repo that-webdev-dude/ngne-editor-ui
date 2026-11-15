@@ -91,7 +91,23 @@ existing editor onto the package, or to a newer version of it: [docs/MIGRATION.m
 | [CHANGELOG.md](CHANGELOG.md)             | Release notes                                       |
 | [RULES.md](RULES.md)                     | Code rules for every contributor                    |
 
-The gallery, deployed from each release tag, shows every component in both themes.
+## Gallery
+
+The gallery is the suite's visual canon: every token and component in both themes, with the
+open-source licences of its build. It is deployed to
+<https://that-webdev-dude.github.io/ngne-editor-ui/> from each release tag and by manual
+dispatch from `main`; it is not yet deployed (the first deploy follows the first full licence
+audit).
+
+Locally, with the package built first:
+
+```sh
+npm run gallery
+```
+
+The development server serves it at `http://localhost:5173/ngne-editor-ui/`. It runs the
+built package, so a change under `src/` shows after `npm run build`. `npm run build:gallery`
+writes the Pages site to `gallery/dist/`, with `licences.txt` beside `index.html`.
 
 ## Develop
 
@@ -100,9 +116,9 @@ npm ci --ignore-scripts
 npm run check
 ```
 
-`npm run check` runs typecheck, lint, formatting, unit tests and the build. The gallery runs
-with `npm run dev`; its E2E specs (Playwright, installed Chrome, axe) with
-`npx playwright test`.
+`npm run check` runs typecheck, lint, formatting, unit tests and the build. The gallery's E2E
+specs (Playwright, installed Chrome, axe) run with `npx playwright test`
+([tests/e2e/README.md](tests/e2e/README.md)).
 
 ## Licence
 

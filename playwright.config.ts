@@ -1,5 +1,6 @@
 import { createServer } from "node:net";
 import { defineConfig } from "@playwright/test";
+import { PAGES_BASE } from "./gallery/pages.ts";
 
 // The gallery's E2E specs (SPEC §3): installed Chrome, axe, both themes. How to run them:
 // tests/e2e/README.md.
@@ -45,7 +46,8 @@ export default defineConfig({
     expect: { timeout: ci ? 20_000 : 10_000 },
     reporter: ci ? [["github"], ["list"]] : "list",
     use: {
-        baseURL: `http://127.0.0.1:${port}`,
+        // The gallery's build, served under its Pages base; specs open "./".
+        baseURL: `http://127.0.0.1:${port}${PAGES_BASE}`,
         channel: "chrome",
         headless: process.env.E2E_HEADLESS !== "0",
         viewport: { width: 1280, height: 720 },
@@ -56,5 +58,16 @@ export default defineConfig({
         },
         trace: "retain-on-failure",
     },
-    // The gallery's dev server joins here with the gallery (`webServer`).
+    // The gallery as Pages serves it: the package's build, the site's build, then Vite's
+    // preview of it (tests/e2e/README.md).
+    webServer: {
+        command: [
+            "npm run build",
+            "node node_modules/vite/bin/vite.js build --config gallery/vite.config.ts --logLevel warn",
+            `node node_modules/vite/bin/vite.js preview --config gallery/vite.config.ts --host 127.0.0.1 --port ${port} --strictPort`,
+        ].join(" && "),
+        url: `http://127.0.0.1:${port}${PAGES_BASE}`,
+        reuseExistingServer: !ci,
+        timeout: 180_000,
+    },
 });
