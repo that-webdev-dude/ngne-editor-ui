@@ -32,7 +32,7 @@ function problem(source, layer, file, srcDir) {
     if (source === "@ngne/core" || source.startsWith("@ngne/core/")) {
         return "No layer imports @ngne/core (SPEC §1.1, BRIEF D2).";
     }
-    if (source.startsWith("@ngne/") || /^ngne-/.test(source)) {
+    if (source.startsWith("@ngne/") || source.startsWith("ngne-")) {
         return "No layer imports an app or another NGNE package (SPEC §1.1).";
     }
     if (source.startsWith(".")) {
@@ -69,7 +69,7 @@ export const layerImports = {
         if (!layer || !(layer in LAYERS)) return {};
         const check = (node) => {
             const source = node.source;
-            if (!source || source.type !== "Literal" || typeof source.value !== "string") return;
+            if (source?.type !== "Literal" || typeof source.value !== "string") return;
             const message = problem(source.value, layer, file, srcDir);
             if (message) context.report({ node: source, message });
         };

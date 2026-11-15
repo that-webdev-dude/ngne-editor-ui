@@ -14,7 +14,13 @@ const SRC = join(ROOT, "src");
 const DIST = join(ROOT, "dist");
 
 /** The stylesheets that open the entry, in this order. */
-const FIRST_STYLESHEETS = ["src/styles/tokens.css", "src/styles/base.css"];
+const FIRST_STYLESHEETS = new Set(["src/styles/tokens.css", "src/styles/base.css"]);
+
+/** Orders strings by UTF-16 code unit, whatever the machine's locale. */
+function byCodeUnit(a: string, b: string): number {
+    if (a === b) return 0;
+    return a < b ? -1 : 1;
+}
 
 /** Every file under `dir`, as paths relative to the repository with "/" separators. */
 function filesUnder(dir: string): string[] {
@@ -28,9 +34,7 @@ function stylesheetOrder(paths: readonly string[]): string[] {
     for (const first of FIRST_STYLESHEETS) {
         if (!paths.includes(first)) throw new Error(`build-assets: ${first} is missing.`);
     }
-    const rest = paths
-        .filter((path) => !FIRST_STYLESHEETS.includes(path))
-        .sort((a, b) => (a === b ? 0 : a < b ? -1 : 1));
+    const rest = paths.filter((path) => !FIRST_STYLESHEETS.has(path)).sort(byCodeUnit);
     return [...FIRST_STYLESHEETS, ...rest];
 }
 

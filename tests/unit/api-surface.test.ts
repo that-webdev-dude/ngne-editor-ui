@@ -67,7 +67,11 @@ const manifest = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8")) as
     exports: Record<string, Target>;
 };
 
-const byCodeUnit = (a: string, b: string) => (a === b ? 0 : a < b ? -1 : 1);
+/** Orders strings by UTF-16 code unit, whatever the machine's locale. */
+function byCodeUnit(a: string, b: string): number {
+    if (a === b) return 0;
+    return a < b ? -1 : 1;
+}
 
 /** The subpath an `exports` key names: "." is the package itself. */
 const subpathOf = (key: string) =>

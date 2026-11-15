@@ -25,6 +25,12 @@ const port = Number(process.env.PORT);
 
 const ci = !!process.env.CI;
 
+/** E2E_WORKERS when set; otherwise one worker on CI, Playwright's default locally. */
+function workerCount(): number | undefined {
+    if (process.env.E2E_WORKERS) return Number(process.env.E2E_WORKERS);
+    return ci ? 1 : undefined;
+}
+
 export default defineConfig({
     testDir: "tests/e2e",
     testMatch: "**/*.spec.ts",
@@ -34,7 +40,7 @@ export default defineConfig({
     // CI shows every worker's headed Chrome window on one X display, where two instances take
     // the pointer and the hover from each other; one worker per job there. E2E_WORKERS
     // overrides the count.
-    workers: process.env.E2E_WORKERS ? Number(process.env.E2E_WORKERS) : ci ? 1 : undefined,
+    workers: workerCount(),
     timeout: ci ? 60_000 : 30_000,
     expect: { timeout: ci ? 20_000 : 10_000 },
     reporter: ci ? [["github"], ["list"]] : "list",

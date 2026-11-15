@@ -16,7 +16,11 @@ function sources(name: RegExp): string[] {
         .map((entry) => relative(ROOT, join(entry.parentPath, entry.name)).replaceAll("\\", "/"));
 }
 
-const byCodeUnit = (a: string, b: string) => (a === b ? 0 : a < b ? -1 : 1);
+/** Orders strings by UTF-16 code unit, whatever the machine's locale. */
+function byCodeUnit(a: string, b: string): number {
+    if (a === b) return 0;
+    return a < b ? -1 : 1;
+}
 
 /** A static or dynamic import of a `.css` file. */
 const CSS_IMPORT =

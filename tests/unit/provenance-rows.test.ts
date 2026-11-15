@@ -27,6 +27,12 @@ const between = (from: string, to: string) =>
 
 const upstreams = tableRows(between("## 1. Upstream register", "## 2.")).map((row) => row[0]);
 const rows = tableRows(between("## 2. Copies", "Rules for the rows"));
+/** Orders strings by UTF-16 code unit, whatever the machine's locale. */
+function byCodeUnit(a: string, b: string): number {
+    if (a === b) return 0;
+    return a < b ? -1 : 1;
+}
+
 const unquote = (cell: string) => /^`([^`]+)`$/.exec(cell)?.[1] ?? null;
 
 describe("PROVENANCE copy rows", () => {
@@ -62,7 +68,7 @@ describe("PROVENANCE copy rows", () => {
 
     it("are sorted by path", () => {
         const paths = rows.map((row) => unquote(row[0]!) ?? "");
-        const sorted = [...paths].sort((a, b) => (a === b ? 0 : a < b ? -1 : 1));
+        const sorted = [...paths].sort(byCodeUnit);
         expect(paths).toEqual(sorted);
     });
 });

@@ -1,4 +1,5 @@
 import { fileURLToPath } from "node:url";
+import { defineConfig } from "eslint/config";
 import js from "@eslint/js";
 import reactHooks from "eslint-plugin-react-hooks";
 import globals from "globals";
@@ -7,7 +8,7 @@ import { layerImports } from "./eslint/layer-imports.js";
 
 const srcDir = fileURLToPath(new URL("src/", import.meta.url));
 
-export default tseslint.config(
+export default defineConfig(
     {
         ignores: ["dist", "node_modules", "test-results", "playwright-report", "coverage"],
     },
