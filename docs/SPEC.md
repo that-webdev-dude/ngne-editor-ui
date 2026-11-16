@@ -198,6 +198,11 @@ only the stored field keeps its old name.
 - Two render paths: `useCommands` re-renders only when a command the component read changed
   (tilemap tracker), and `useCommandValue(read)` re-renders only when the read value changes
   (sprite editor). Both are kept (BRIEF D14).
+- The hooks and `contextMenuEntries(menu, commands)` read the registry of the instance
+  `UiRoot` provides unless one is passed (`useCommands(registry?)`,
+  `useCommandValue(read, registry?)`); `runCommand(registry, id)` takes it, as non-React code
+  holds the app's instance. A failing command is reported by an error toast
+  (`reportCommandError`); a context menu lists disabled commands, inert.
 - `commandGate` and `beforeRun` replace the apps' edits of `appCommands.ts` and `invoke.ts`.
   A command's `enabled()` asks the gate first, then the command's own condition, which may
   assume what the gate checks; `beforeRun` is part of the command's `run`, so every caller

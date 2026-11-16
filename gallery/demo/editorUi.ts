@@ -1,14 +1,16 @@
 /// <reference types="vite/client" />
 import { createEditorUi } from "@ngne/editor-ui";
 import type { EditorUiModules } from "@ngne/editor-ui";
+import { rowsStore } from "./rows.ts";
 
 // The gallery's demo editor (SPEC §5): its editor UI instance, configured as an editor's
 // `src/app/editorUi.ts` is. Each registry's modules are found by one `import.meta.glob` line
-// under demo/, so a demo feature joins as a new file with the registry's suffix.
+// under demo/, so a demo feature joins as a new file with the registry's suffix. The stores the
+// commands read refresh them.
 
 const MENUS = ["File", "Edit", "View", "Help"] as const;
-type Menu = (typeof MENUS)[number];
-type Modules = EditorUiModules<Menu>;
+export type DemoMenu = (typeof MENUS)[number];
+type Modules = EditorUiModules<DemoMenu>;
 
 /** One module of a registry's map. */
 type ModuleOf<Name extends keyof Modules> = Modules[Name][string];
@@ -42,4 +44,5 @@ export const editorUi = createEditorUi({
             eager: true,
         }),
     },
+    refreshOn: [rowsStore],
 });

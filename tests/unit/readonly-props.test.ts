@@ -102,6 +102,7 @@ describe("Readonly props", () => {
     it("finds the components under src/ui", () => {
         expect(modules).toEqual(
             expect.arrayContaining([
+                "src/ui/commands/Chord.tsx",
                 "src/ui/gallery/Gallery.tsx",
                 "src/ui/messages/DialogHost.tsx",
                 "src/ui/messages/RegionBoundary.tsx",

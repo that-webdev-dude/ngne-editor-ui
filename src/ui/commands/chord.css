@@ -1,0 +1,12 @@
+/* Key cap of a chord (SPEC §7.2): the command palette trigger and the shortcut sheet show
+   keys with it. Tokens only (SPEC §9.2). */
+.ui-chord {
+    flex: none;
+    padding: 0 var(--space-4);
+    border: var(--border-width) solid var(--border-strong);
+    border-radius: var(--radius-control);
+    color: var(--text-muted);
+    font: inherit;
+    font-size: var(--font-size-label);
+    white-space: nowrap;
+}
