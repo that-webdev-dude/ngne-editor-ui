@@ -252,9 +252,11 @@ only the stored field keeps its old name.
   `dirty`), the active id, a leading label (project name) and callbacks (`activate`, `close`,
   `move`); the strip owns metrics, keyboard (arrows, Home, End, Delete), drag to reorder and
   the overflow menu, whose label the app passes.
-- **Tools (BRIEF D18):** `ToolBase` holds what the rail and context bar need: id, title, icon,
-  key, group, variant-of, option specs. Apps extend it with pointer and stroke behaviour; the
-  registry is generic over `Tool extends ToolBase`.
+- **Tools (BRIEF D18):** `ToolBase` holds what the rail and context bar need: id, title
+  (`label`), icon, key (`shortcut`, and a `hold` key), group (`railOrder`, whose hundreds are
+  the rail's groups), variant-of (`variantOf`), option specs (`options`). Apps extend it with
+  pointer and stroke behaviour; the registry is generic over `Tool extends ToolBase`. A key that
+  two tools or planned slots use is refused at registration.
 - **F6 regions:** found by `data-region`; F6 / Shift+F6 cycle them.
 
 ## 9. Primitives and styles
