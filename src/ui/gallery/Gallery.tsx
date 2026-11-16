@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useState } from "react";
+import { inertOutsideModalLayers } from "../focus/inertOutside.js";
 import { GALLERY_ENTRIES } from "./entries.js";
 import { GalleryThemeContext } from "./entry.js";
 import type { GalleryEntry, GalleryTheme } from "./entry.js";
@@ -37,6 +38,14 @@ function useInputModality(): void {
     }, []);
 }
 
+/**
+ * Marks the page `inert` while a modal layer of the entries is open (DESIGN §9), as `UiRoot`
+ * does in an app: it takes this over when it joins the package (SPEC §8).
+ */
+function useInertOutside(): void {
+    useEffect(() => inertOutsideModalLayers(), []);
+}
+
 function Section({ entry }: Readonly<{ entry: GalleryEntry }>) {
     const { id, title, Component } = entry;
     return (
@@ -58,6 +67,7 @@ function Section({ entry }: Readonly<{ entry: GalleryEntry }>) {
 export function Gallery() {
     const [theme, setTheme] = useState<GalleryTheme>("dark");
     useInputModality();
+    useInertOutside();
     useLayoutEffect(() => applyTheme(theme), [theme]);
 
     // The theme is on the document before the entries render in it: they read its values.
