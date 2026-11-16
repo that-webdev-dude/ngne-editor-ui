@@ -197,6 +197,15 @@ only the stored field keeps its old name.
   (tilemap tracker), and `useCommandValue(read)` re-renders only when the read value changes
   (sprite editor). Both are kept (BRIEF D14).
 - `commandGate` and `beforeRun` replace the apps' edits of `appCommands.ts` and `invoke.ts`.
+  A command's `enabled()` asks the gate first, then the command's own condition, which may
+  assume what the gate checks; `beforeRun` is part of the command's `run`, so every caller
+  runs it and what it throws reaches the caller's error handler.
+- Registration throws a `RegistrationError` naming the module for a duplicate id, a menu the
+  menu bar does not have, an unreadable shortcut or unknown context, and a chord conflict: two
+  commands that bind one chord in one context and neither has an `enabled` condition, so both
+  are enabled in every state. Commands whose conditions exclude each other may share a chord;
+  `findChordConflicts(registry)` reports the enabled commands that share one now, and an app
+  runs it in its tests in each state where its enabled commands differ.
 - Command palette with fuzzy matching and recent commands; shortcut sheet; open-surface
   tracking with the package's surfaces plus the app's.
 
