@@ -13,7 +13,8 @@
             "@ngne/editor-ui/commands": ["./src/ui/commands/index.ts"],
             "@ngne/editor-ui/gallery": ["./src/ui/gallery/index.ts"],
             "@ngne/editor-ui/licences/build": ["./src/build/licences/index.ts"],
-            "@ngne/editor-ui/primitives": ["./src/ui/primitives/index.ts"]
+            "@ngne/editor-ui/primitives": ["./src/ui/primitives/index.ts"],
+            "@ngne/editor-ui/shell": ["./src/ui/shell/index.ts"]
         }
     },
     "include": ["*.config.ts", "gallery", "scripts", "tests"],

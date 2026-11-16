@@ -55,7 +55,7 @@ export const paletteTrigger = (page: Page) =>
 /** The instance's open surface, as the demo names it on its page. */
 export const openSurface = (page: Page) =>
     page
-        .locator(`main[data-editor-ui="${ID}"]`)
+        .locator(`[data-editor-ui="${ID}"]`)
         .evaluate((main) => (main as HTMLElement).dataset.openSurface ?? null);
 /** What the commands run so far recorded, oldest first. */
 export const ran = (page: Page) =>

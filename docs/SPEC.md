@@ -53,7 +53,7 @@ errors (duplicate ids, chord conflicts, unknown menus) throw at startup, as toda
 | Status fields | `*.status.ts` | `collectStatusFields(map)` |
 
 The package's own commands (command palette, Help → Keyboard Shortcuts…, Help → About,
-F6 regions, View → Open Source Licences…) are registered by `createEditorUi` before the app's
+F6 regions, the bottom region's Tab toggle, View → Open Source Licences…) are registered by `createEditorUi` before the app's
 modules. There is no theme command: the theme store (`useTheme`, `setTheme`) is exported from
 `@ngne/editor-ui`, and each app sets the theme from its Preferences. The theme belongs to the
 instance: `useTheme()` reads it from the instance `UiRoot` provides, `setTheme(editorUi, theme)`
@@ -157,7 +157,7 @@ const editorUi = createEditorUi({
 | `about` | `AppInfo`: package name, version, licence, engine package and version, repository and changelog URLs | Required |
 | `menus` | Menu bar order; also the type of every command's menu placement. Must contain `View` and end with `Help`, or `createEditorUi` throws | Required |
 | `keyContexts` | App contexts and their order around the package's `text`, `canvas`, `global` (§7.2); state contexts; focus selectors | `text`, `canvas`, `global` only |
-| `bottomRegion` | Id and label of the bottom region, or `null` for none | `null` |
+| `bottomRegion` | Id and label of the bottom region, or `null` for none. The id is lowercase words joined by hyphens and not another region's (§8); the label is in title case | `null` |
 | `railFooterHeight` | Height reserved under the tool rail's groups | `0` |
 | `modules` | The module maps of §1.3 | Empty maps |
 | `refreshOn` | Stores whose change triggers a command refresh | None |
@@ -256,11 +256,23 @@ only the stored field keeps its old name.
 | `railFooter` | Colour chips, stamp preview, … (height `railFooterHeight`) |
 | `viewport` | The viewport region content |
 | `bottom` | The bottom region content (when `bottomRegion` is set) |
-| `noDocument` | What the viewport shows when no document is open; gates the bottom region and the dock |
+| `noDocument` | What the viewport shows when no document is open; gates the bottom region and the dock: given, it takes the viewport content's place and their frames stay, empty, so the layout does not move when a document opens (as the tilemap editor's no-project gate) |
 
 - **Layout:** minimum window 1280×720; dock width 264 (220–360); bottom-region and rail sizes
   as the sprite editor at the cut; the tool rail full height beside the bottom region, which
-  spans the viewport and dock columns (DESIGN §2, BRIEF D22); the window-too-small notice.
+  spans the viewport and dock columns (DESIGN §2, BRIEF D22). The splitter sizes are the
+  instance's layout store (`editorUi.layout`, under `<id>.layout`). Below 1280×720 `AppShell`
+  shows the window-too-small notice and keeps the frame mounted, hidden, so a resize loses no
+  state; the app turns the keymap off meanwhile through `UiRoot`'s `keymap` prop
+  (`useWindowTooSmall()`), as the sprite editor did.
+- **Bottom region:** the region's `data-region` is `bottomRegion.id` and its accessible name
+  the label. Whether it is shown is the instance's `editorUi.bottomRegion` store, shown at
+  every start and not persisted (`setBottomRegionVisible`). Tab toggles it while the viewport
+  has focus (`canvas`): the package command `view.` + the id in camel case, the id both editors
+  gave it (`timeline` → `view.timeline`, `bottom-panel` → `view.bottomPanel`), titled
+  "Hide <label>" or "Show <label>" by what it will do. It names no menu; an editor places it in
+  View with a planned command of that id. An editor without a bottom region has no such
+  command.
 - **Tool rail:** columns from the tool registry's groups; one or two columns by height. An
   optional filter chooses the tools shown (the tilemap shows the tools of the active layer's
   kind).
@@ -278,7 +290,8 @@ only the stored field keeps its old name.
   the rail's groups), variant-of (`variantOf`), option specs (`options`). Apps extend it with
   pointer and stroke behaviour; the registry is generic over `Tool extends ToolBase`. A key that
   two tools or planned slots use is refused at registration.
-- **F6 regions:** found by `data-region`; F6 / Shift+F6 cycle them.
+- **F6 regions:** found by `data-region`; F6 / Shift+F6 cycle them (`focus.nextRegion`,
+  `focus.previousRegion`, in `global` and `text`, the editors' ids).
 
 ## 9. Primitives and styles
 

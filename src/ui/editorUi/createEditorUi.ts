@@ -20,6 +20,10 @@ import { createKeyContextStore } from "../commands/keyContextState.js";
 import type { KeyContextState } from "../commands/keyContextState.js";
 import type { CommandDialogs } from "../messages/dialogRegistry.js";
 import { browserStorage } from "../platform/storage.js";
+import { createBottomRegionStore } from "../shell/bottomRegion.js";
+import type { BottomRegionState } from "../shell/bottomRegion.js";
+import { createLayoutStore } from "../shell/layoutStore.js";
+import type { LayoutState } from "../shell/layoutStore.js";
 import { PACKAGE_SURFACES, resolveEditorUiConfig } from "./config.js";
 import type { EditorUiConfig, ResolvedEditorUiConfig } from "./config.js";
 import { PACKAGE_COMMAND_MODULES, PACKAGE_COMMAND_SOURCE } from "./packageCommands.js";
@@ -52,6 +56,10 @@ export interface EditorUi<
     readonly theme: StoreApi<ThemeState>;
     /** The commands last run from the palette, kept under `<id>.recent-commands`. */
     readonly recentCommands: StoreApi<RecentCommandsState>;
+    /** The shell's splitter sizes, kept under `<id>.layout`. */
+    readonly layout: StoreApi<LayoutState>;
+    /** Whether the bottom region is shown; shown at startup, not persisted. */
+    readonly bottomRegion: StoreApi<BottomRegionState>;
     /** The package's commands, then the editor's `*.commands.ts(x)` modules. */
     readonly commands: CommandRegistry<Menu, Context>;
     /** The state contexts of `config.keyContexts.state`, all off at startup (`setKeyContext`). */
@@ -76,7 +84,7 @@ export interface EditorUi<
 export type AnyEditorUi = EditorUi<string, string, ToolBase, unknown, unknown>;
 
 /** The persisted name `<id>.<name>` of SPEC §5. */
-export const persistedName = (id: string, name: "theme" | "recent-commands"): string =>
+export const persistedName = (id: string, name: "theme" | "layout" | "recent-commands"): string =>
     `${id}.${name}`;
 
 /** What the package itself adds to every instance; a parameter so tests can pass fixtures. */
@@ -113,6 +121,7 @@ export function buildEditorUi<
     const { id, modules } = resolved;
     const storage = browserStorage();
     const surfaces = createSurfaces([...PACKAGE_SURFACES, ...Object.keys(resolved.surfaces)]);
+    const bottomRegion = createBottomRegionStore();
 
     const commands = createCommandRegistry<Menu, Context>({
         menus: resolved.menus,
@@ -124,14 +133,20 @@ export function buildEditorUi<
     // The menu bar has View and Help (checked above), the only menus a package command names.
     registerCommandModules(
         commands,
-        packageModulesFor(parts.commandModules, { surfaces }) as unknown as ModuleMap<
-            CommandModule<Menu, Context>
-        >,
+        packageModulesFor(parts.commandModules, {
+            surfaces,
+            bottomRegion: resolved.bottomRegion && {
+                region: resolved.bottomRegion,
+                editorUi: { bottomRegion },
+            },
+        }) as unknown as ModuleMap<CommandModule<Menu, Context>>,
     );
     registerCommandModules(commands, modules.commands);
     // A command's condition may read a state context, as it may read the refreshOn stores.
     const keyContextState = createKeyContextStore(resolved.keyContexts.state);
     keyContextState.subscribe(() => commands.refresh());
+    // The bottom region's toggle is titled by what it will do.
+    bottomRegion.subscribe(() => commands.refresh());
     for (const source of resolved.refreshOn) source.subscribe(() => commands.refresh());
 
     const tools = createToolRegistry<Tool>();
@@ -141,6 +156,8 @@ export function buildEditorUi<
         config: resolved,
         theme: createThemeStore(storage, persistedName(id, "theme")),
         recentCommands: createRecentCommandsStore(storage, persistedName(id, "recent-commands")),
+        layout: createLayoutStore(storage, persistedName(id, "layout")),
+        bottomRegion,
         commands,
         keyContextState,
         surfaces,

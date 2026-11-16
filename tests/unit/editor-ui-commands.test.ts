@@ -21,14 +21,21 @@ import {
 } from "../../src/ui/editorUi/packageCommands.ts";
 import { createEditorUi } from "../../src/ui/index.ts";
 import type { AppInfo, EditorUiConfig } from "../../src/ui/index.ts";
+import {
+    bottomRegionCommand,
+    NEXT_REGION_COMMAND,
+    PREVIOUS_REGION_COMMAND,
+    setBottomRegionVisible,
+} from "../../src/ui/shell/index.ts";
 
 // The command registry of an editor UI instance (SPEC §1.3, §5, §7.1): the package's command
 // modules register before the editor's, so an editor's command that takes a package command's
 // id or chord fails at startup, naming the editor's module; the editor's `commandGate` and
 // `refreshOn` stores act on its own commands, `beforeRun` on every command. The package's
 // modules are a fixture here, passed as `createEditorUi` passes the real list, except in the
-// last block: the real command palette and shortcut sheet commands, their chords and contexts,
-// their menu places (Keyboard Shortcuts… first in Help) and the surfaces they open.
+// last blocks: the real command palette and shortcut sheet commands, their chords and contexts,
+// their menu places (Keyboard Shortcuts… first in Help) and the surfaces they open; and the
+// shell's commands, F6 and Shift+F6 and the bottom region's Tab toggle (SPEC §8).
 
 type Menu = "File" | "Edit" | "View" | "Help";
 
@@ -126,7 +133,7 @@ describe("package commands", () => {
     it("are the package's own list in createEditorUi, each module under the package's prefix", () => {
         const editorUi = createEditorUi(BASE);
         const packageIds = Object.values(PACKAGE_COMMAND_MODULES)
-            .map((module) => module({ surfaces: editorUi.surfaces }))
+            .map((module) => module({ surfaces: editorUi.surfaces, bottomRegion: null }))
             .flatMap((module) => [...(module.commands ?? []), ...(module.plannedCommands ?? [])])
             .map((spec) => spec.id)
             .sort();
@@ -398,5 +405,205 @@ describe("the command palette and shortcut sheet commands (SPEC §7.1, §11)", (
         expect(editorUi.surfaces.store.getState().open).toBe("command-palette");
         editorUi.surfaces.open("preferences");
         expect(editorUi.surfaces.store.getState().open).toBe("preferences");
+    });
+});
+
+describe("the shell's commands: F6, Shift+F6 and the bottom region's Tab toggle (SPEC §8)", () => {
+    const REGIONS_SOURCE = `${PACKAGE_COMMAND_SOURCE}shell/regions.commands.ts`;
+    const BOTTOM_SOURCE = `${PACKAGE_COMMAND_SOURCE}shell/bottomRegion.commands.ts`;
+    const TIMELINE = { id: "timeline", label: "Timeline" };
+
+    function editor(
+        module: CommandModule<Menu> = { commands: [] },
+        config: Partial<EditorUiConfig<Menu>> = {},
+    ) {
+        return createEditorUi({
+            ...BASE,
+            ...config,
+            modules: { commands: { [APP_PATH]: module } },
+        });
+    }
+
+    function environment(overrides: Partial<KeyEnvironment> = {}): KeyEnvironment {
+        return {
+            overlayOpen: false,
+            focus: "viewport",
+            nativeKeys: new Set(),
+            typeahead: false,
+            ...overrides,
+        };
+    }
+
+    it("F6 and Shift+F6 keep the editors' ids and bind global and text, with no menu", () => {
+        const { commands } = editor();
+        expect(NEXT_REGION_COMMAND).toBe("focus.nextRegion");
+        expect(PREVIOUS_REGION_COMMAND).toBe("focus.previousRegion");
+        expect(commands.get(NEXT_REGION_COMMAND)).toMatchObject({
+            source: REGIONS_SOURCE,
+            planned: false,
+            shortcuts: ["F6"],
+            contexts: ["global", "text"],
+            menuPath: null,
+        });
+        expect(commands.get(PREVIOUS_REGION_COMMAND)).toMatchObject({
+            source: REGIONS_SOURCE,
+            planned: false,
+            shortcuts: ["Shift+F6"],
+            contexts: ["global", "text"],
+            menuPath: null,
+        });
+        expect(commands.get(NEXT_REGION_COMMAND)!.title()).toBe("Focus Next Region");
+        expect(commands.get(PREVIOUS_REGION_COMMAND)!.title()).toBe("Focus Previous Region");
+    });
+
+    it("F6 and Shift+F6 act everywhere but under an overlay, a text field included", () => {
+        const { commands } = editor(undefined, { commandGate: () => false });
+        for (const [chord, id] of [
+            ["F6", NEXT_REGION_COMMAND],
+            ["Shift+F6", PREVIOUS_REGION_COMMAND],
+        ] as const) {
+            const command = commands.get(id);
+            const resolved = (overrides: Partial<KeyEnvironment>) =>
+                resolveKey(commands, chord, environment(overrides), []);
+            // Outside the editor's gate: they act without a document.
+            expect(command!.enabled(), id).toBe(true);
+            expect(resolved({})).toMatchObject({ action: "run", command, context: "global" });
+            expect(resolved({ focus: "none" })).toMatchObject({ action: "run", command });
+            expect(resolved({ focus: "control" })).toMatchObject({ action: "run", command });
+            expect(resolved({ focus: "text" })).toMatchObject({
+                action: "run",
+                command,
+                context: "text",
+            });
+            expect(resolved({ overlayOpen: true }).action, id).not.toBe("run");
+        }
+    });
+
+    it("an editor without a bottom region has no Tab toggle", () => {
+        const { commands } = editor();
+        expect(commands.list().filter((command) => command.shortcuts.includes("Tab"))).toEqual([]);
+        expect(commands.list().filter((command) => command.source === BOTTOM_SOURCE)).toEqual([]);
+        expect(resolveKey(commands, "Tab", environment(), [])).toEqual({ action: "pass" });
+    });
+
+    it("the toggle's id is view. and the region's id in camel case, the editors' ids", () => {
+        expect(bottomRegionCommand("timeline")).toBe("view.timeline");
+        expect(bottomRegionCommand("bottom-panel")).toBe("view.bottomPanel");
+        expect(bottomRegionCommand("frame-strip-two")).toBe("view.frameStripTwo");
+        const sprite = editor(undefined, { bottomRegion: TIMELINE });
+        expect(sprite.commands.get("view.timeline")).toMatchObject({ source: BOTTOM_SOURCE });
+        expect(sprite.commands.get("view.timeline")!.title()).toBe("Hide Timeline");
+        const tilemap = editor(undefined, {
+            bottomRegion: { id: "bottom-panel", label: "Bottom Panel" },
+        });
+        expect(tilemap.commands.get("view.bottomPanel")).toMatchObject({ source: BOTTOM_SOURCE });
+        expect(tilemap.commands.get("view.bottomPanel")!.title()).toBe("Hide Bottom Panel");
+    });
+
+    it("Tab binds canvas only, names no menu, and is titled by what it will do", async () => {
+        const editorUi = editor(undefined, { bottomRegion: TIMELINE });
+        const toggle = editorUi.commands.get("view.timeline")!;
+        expect(toggle).toMatchObject({
+            planned: false,
+            shortcuts: ["Tab"],
+            contexts: ["canvas"],
+            menuPath: null,
+            release: null,
+        });
+        expect(editorUi.bottomRegion.getState().visible).toBe(true);
+        expect(toggle.title()).toBe("Hide Timeline");
+        await toggle.run();
+        expect(editorUi.bottomRegion.getState().visible).toBe(false);
+        expect(toggle.title()).toBe("Show Timeline");
+        await toggle.run();
+        expect(editorUi.bottomRegion.getState().visible).toBe(true);
+        expect(toggle.title()).toBe("Hide Timeline");
+    });
+
+    it("Tab reaches the toggle only while the viewport itself has focus", () => {
+        const { commands } = editor(undefined, { bottomRegion: TIMELINE });
+        const toggle = commands.get("view.timeline");
+        const resolved = (overrides: Partial<KeyEnvironment>) =>
+            resolveKey(commands, "Tab", environment(overrides), []);
+        expect(resolved({})).toMatchObject({ action: "run", command: toggle, context: "canvas" });
+        // Elsewhere Tab moves the focus, as the browser does.
+        expect(resolved({ focus: "control" })).toEqual({ action: "pass" });
+        expect(resolved({ focus: "none" })).toEqual({ action: "pass" });
+        expect(resolved({ focus: "text" })).toEqual({ action: "pass" });
+        expect(resolved({ overlayOpen: true })).toEqual({ action: "pass" });
+        // Shift+Tab is not the toggle's chord.
+        expect(resolveKey(commands, "Shift+Tab", environment(), [])).toEqual({ action: "pass" });
+    });
+
+    it("a change of visibility refreshes the commands, from the toggle or the editor's code", async () => {
+        const editorUi = editor(undefined, { bottomRegion: TIMELINE });
+        const refreshed = vi.fn();
+        editorUi.commands.subscribe(refreshed);
+        await editorUi.commands.get("view.timeline")!.run();
+        expect(refreshed).toHaveBeenCalledTimes(1);
+        setBottomRegionVisible(editorUi, true);
+        expect(refreshed).toHaveBeenCalledTimes(2);
+        expect(editorUi.commands.get("view.timeline")!.title()).toBe("Hide Timeline");
+        // Nothing changes, nothing refreshes.
+        setBottomRegionVisible(editorUi, true);
+        expect(refreshed).toHaveBeenCalledTimes(2);
+    });
+
+    it("each instance has its own visibility, outside the editor's gate", async () => {
+        const first = editor(undefined, { bottomRegion: TIMELINE, commandGate: () => false });
+        const second = editor(undefined, { bottomRegion: TIMELINE });
+        expect(first.bottomRegion).not.toBe(second.bottomRegion);
+        expect(first.commands.get("view.timeline")!.enabled()).toBe(true);
+        await first.commands.get("view.timeline")!.run();
+        expect(first.bottomRegion.getState().visible).toBe(false);
+        expect(second.bottomRegion.getState().visible).toBe(true);
+    });
+
+    it("the toggle takes the View menu item an editor plans for its id", () => {
+        const { commands } = editor(
+            {
+                plannedCommands: [
+                    {
+                        id: "view.bottomPanel",
+                        title: "Hide Bottom Panel",
+                        menuPath: ["View"],
+                        menuOrder: 300,
+                    },
+                ],
+            },
+            { bottomRegion: { id: "bottom-panel", label: "Bottom Panel" } },
+        );
+        expect(commands.get("view.bottomPanel")).toMatchObject({
+            planned: false,
+            source: BOTTOM_SOURCE,
+            menuPath: ["View"],
+            menuOrder: 300,
+            shortcuts: ["Tab"],
+        });
+    });
+
+    it("an editor's command that binds F6 or the toggle's Tab fails, naming the editor's module", () => {
+        const cases = [
+            ["F6", "global", {}],
+            ["Tab", "canvas", { bottomRegion: TIMELINE }],
+        ] as const;
+        for (const [shortcut, context, config] of cases) {
+            const error = thrown(() =>
+                editor(
+                    { commands: [{ id: "app.mine", title: "Mine", shortcut, context, run }] },
+                    config,
+                ),
+            );
+            expect(error, shortcut).toBeInstanceOf(RegistrationError);
+            expect((error as RegistrationError).path, shortcut).toBe(APP_PATH);
+        }
+        // Without a bottom region, Tab in canvas is the editor's to bind.
+        expect(() =>
+            editor({
+                commands: [
+                    { id: "app.mine", title: "Mine", shortcut: "Tab", context: "canvas", run },
+                ],
+            }),
+        ).not.toThrow();
     });
 });
