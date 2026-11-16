@@ -1,0 +1,26 @@
+/* The demo editor's page (SPEC §5). Tokens only (SPEC §9.2). */
+.demo {
+    height: 100%;
+    background: var(--bg-panel);
+}
+
+.demo__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-16);
+    min-height: 36px;
+    padding: 0 var(--space-16);
+    border-bottom: var(--border-width) solid var(--border);
+}
+
+.demo__heading {
+    margin: 0;
+    font-size: var(--font-size-title);
+    font-weight: var(--font-weight-strong);
+}
+
+.demo__text {
+    margin: var(--space-16);
+    color: var(--text-muted);
+}

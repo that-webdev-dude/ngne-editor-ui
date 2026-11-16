@@ -88,6 +88,8 @@ export interface SyntheticContextBarContent {
 export interface SyntheticToolSpec {
     id: string;
     label: string;
+    /** A tool in the rail has an icon (SPEC §8); its type is the editor's, a name here. */
+    icon: string;
     shortcut: string;
     railOrder: number;
 }
@@ -186,6 +188,7 @@ export function createEditorUiModules(): EditorUiModuleMaps {
                 {
                     id,
                     label: `Feature ${index}`,
+                    icon: id,
                     shortcut: TOOL_KEYS[index],
                     railOrder: 100 * (1 + Math.floor(index / 10)) + index,
                 },

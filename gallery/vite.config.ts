@@ -7,12 +7,14 @@ import { defineConfig } from "vite";
 import type { Plugin } from "vite";
 import { PAGES_BASE } from "./pages.ts";
 
-// The gallery site (SPEC §12), deployed to this repository's Pages (BRIEF D13). It runs the
-// built package: `@ngne/editor-ui` and its subpaths resolve through the `exports` map of
-// package.json to dist/, so `npm run build` comes first. The build writes licences.txt beside
-// index.html (SPEC §11).
+// The gallery site (SPEC §12), deployed to this repository's Pages (BRIEF D13): the gallery
+// page and the demo editor's page (demo/, SPEC §5). It runs the built package:
+// `@ngne/editor-ui` and its subpaths resolve through the `exports` map of package.json to
+// dist/, so `npm run build` comes first. The build writes licences.txt beside index.html
+// (SPEC §11).
 
 const ROOT = fileURLToPath(new URL("../", import.meta.url));
+const SITE = fileURLToPath(new URL(".", import.meta.url));
 
 type Target = string | { types: string; default: string };
 const manifest = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8")) as {
@@ -48,7 +50,7 @@ const licences = generateLicences({
 });
 
 export default defineConfig({
-    root: fileURLToPath(new URL(".", import.meta.url)),
+    root: SITE,
     // The development server and the preview serve the site where Pages does.
     base: PAGES_BASE,
     plugins: [packageSubpaths(), react(), licences.plugin],
@@ -63,5 +65,8 @@ export default defineConfig({
         emptyOutDir: true,
         cssMinify: false,
         modulePreload: { polyfill: false },
+        rolldownOptions: {
+            input: { gallery: join(SITE, "index.html"), demo: join(SITE, "demo", "index.html") },
+        },
     },
 });

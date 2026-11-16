@@ -12,7 +12,28 @@ const ROOT = fileURLToPath(new URL("../../", import.meta.url));
 
 /** Every subpath, in the order of SPEC §4, and its exported names, sorted by code unit. */
 const API: Record<string, readonly string[]> = {
-    "@ngne/editor-ui": [],
+    "@ngne/editor-ui": [
+        "AnyEditorUi",
+        "AppInfo",
+        "BottomRegion",
+        "CommandRefreshSource",
+        "EditorUi",
+        "EditorUiConfig",
+        "EditorUiKeyContexts",
+        "EditorUiModules",
+        "RecentCommandsState",
+        "ResolvedEditorUiConfig",
+        "SurfaceState",
+        "Surfaces",
+        "Theme",
+        "ThemeState",
+        "UiRoot",
+        "UiRootProps",
+        "createEditorUi",
+        "setTheme",
+        "useEditorUi",
+        "useTheme",
+    ],
     "@ngne/editor-ui/styles.css": [],
     "@ngne/editor-ui/styles/check": [],
     "@ngne/editor-ui/primitives": [
