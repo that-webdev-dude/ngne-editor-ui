@@ -488,6 +488,10 @@ test("a crashed region shows one line and Reload while the other regions stay us
     await openPalette(page);
     await page.keyboard.press("Escape");
     await expect(palette(page)).toBeHidden();
+    // Radix returns the focus to the opener after the palette is gone; wait for it before the
+    // next focus move, or it lands after that move.
+    await settle(page);
+    await expect(dockSplitter(page)).toBeFocused();
     // The bottom region's splitter still resizes it.
     await tabTo(page, bottomSplitter(page));
     await page.keyboard.press("ArrowUp");
