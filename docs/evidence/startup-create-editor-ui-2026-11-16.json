@@ -1,0 +1,29 @@
+{
+    "benchmark": "startup-create-editor-ui",
+    "date": "2026-11-16",
+    "commit": "93c1a39",
+    "workingTreeClean": true,
+    "machine": {
+        "cpu": "12th Gen Intel(R) Core(TM) i7-12650H",
+        "logicalCores": 16,
+        "memoryGb": 16,
+        "os": "win32 10.0.26200 x64",
+        "node": "v24.15.0",
+        "powerPlan": "Balanced"
+    },
+    "unit": "ms",
+    "reportOnly": true,
+    "tasks": [
+        {
+            "name": "createEditorUi: 300 commands, 30 modules per other registry",
+            "meanMs": 0.8015133012820592,
+            "p50Ms": 0.7653500000001259,
+            "p75Ms": 0.8308000000001812,
+            "p99Ms": 1.2338069999998789,
+            "minMs": 0.6559999999999491,
+            "maxMs": 1.9454000000000633,
+            "rmePercent": 0.9058191624568015,
+            "samples": 1248
+        }
+    ]
+}
