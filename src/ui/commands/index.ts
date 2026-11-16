@@ -1,7 +1,10 @@
 // Entry module of `@ngne/editor-ui/commands` (SPEC §4, §7). The Model part: command registry,
 // chords and their display, key classes, key contexts and resolution, the menu model, and the
 // command palette, recent-command and shortcut-sheet models, generic over the editor's menus
-// and contexts (BRIEF D16).
+// and contexts (BRIEF D16). The UI part: the hooks that read commands and render again only
+// when what they read changed (SPEC §2 Command refresh), running a command with failures as
+// error toasts, the chord key cap and the context-menu entries; each reads the editor UI
+// instance `UiRoot` provides or takes the registry as an argument (SPEC §1.2).
 
 export { RegistrationError } from "../../model/modules.js";
 export {
@@ -69,3 +72,9 @@ export type {
     MenuPath,
     PlannedCommandSpec,
 } from "../../model/commands/types.js";
+
+export { Chord } from "./Chord.js";
+export type { ChordProps } from "./Chord.js";
+export { contextMenuEntries } from "./contextMenu.js";
+export { reportCommandError, runCommand } from "./runCommand.js";
+export { useCommands, useCommandValue } from "./useCommands.js";

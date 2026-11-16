@@ -1,6 +1,7 @@
 import { setTheme, useEditorUi, useTheme } from "@ngne/editor-ui";
 import type { Theme } from "@ngne/editor-ui";
 import { SegmentedControl } from "@ngne/editor-ui/primitives";
+import { DemoRows } from "./DemoRows.tsx";
 
 // The demo editor's content, read from the instance `UiRoot` provides. An editor sets the theme
 // from its Preferences (SPEC §1.3); the demo has the one control.
@@ -28,6 +29,7 @@ export function DemoEditor() {
                 The gallery's demo editor: an editor UI instance from its configuration, mounted
                 through UiRoot.
             </p>
+            <DemoRows />
         </main>
     );
 }

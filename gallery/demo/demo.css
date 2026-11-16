@@ -24,3 +24,24 @@
     margin: var(--space-16);
     color: var(--text-muted);
 }
+
+/* The rows panel (DESIGN §4 Context menu) */
+.demo__rows {
+    display: flex;
+    flex-direction: column;
+    max-width: 320px;
+    margin: 0 var(--space-16);
+    border: var(--border-width) solid var(--border);
+    list-style: none;
+}
+
+.demo__row {
+    display: flex;
+    align-items: center;
+    height: var(--control-height);
+    padding: 0 var(--space-8);
+}
+
+.demo__row + .demo__row {
+    border-top: var(--border-width) solid var(--border);
+}

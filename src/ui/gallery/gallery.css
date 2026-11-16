@@ -294,3 +294,30 @@
 .gallery__region--narrow .gallery__fragile {
     padding: 0;
 }
+
+/* Command-refresh entry (SPEC §2 Command refresh) */
+.gallery-commands {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-8);
+}
+
+.gallery-commands__reader {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-16);
+    min-height: var(--control-height);
+}
+
+.gallery-commands__label {
+    color: var(--text-muted);
+}
+
+.gallery-commands__read,
+.gallery-commands__command {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-8);
+}
