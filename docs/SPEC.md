@@ -27,8 +27,8 @@ Source paths in this file are the sprite editor's, under `src/`, at the cut (BRI
 
 Everything that depends on the app is built once, at startup, by `createEditorUi(config)`
 (§5). The app keeps the result in one module of its own (by convention
-`src/app/editorUi.ts`) and passes it to `UiRoot`; React components read it from context,
-non-React app code imports the app's module.
+`src/app/editorUi.ts`) and passes it to `UiRoot`; React components read it from context
+(`useEditorUi()`), non-React app code imports the app's module.
 
 Identity-free services stay module-level in the package, one copy per app (exact pins and
 peers guarantee it): toasts, notices, command dialog requests, storage-failure reporting,
@@ -55,7 +55,9 @@ errors (duplicate ids, chord conflicts, unknown menus) throw at startup, as toda
 The package's own commands (command palette, Help → Keyboard Shortcuts…, Help → About,
 F6 regions, View → Open Source Licences…) are registered by `createEditorUi` before the app's
 modules. There is no theme command: the theme store (`useTheme`, `setTheme`) is exported from
-`@ngne/editor-ui`, and each app sets the theme from its Preferences.
+`@ngne/editor-ui`, and each app sets the theme from its Preferences. The theme belongs to the
+instance: `useTheme()` reads it from the instance `UiRoot` provides, `setTheme(editorUi, theme)`
+sets and stores it.
 
 ## 2. Performance
 
@@ -159,7 +161,7 @@ const editorUi = createEditorUi({
 | `railFooterHeight` | Height reserved under the tool rail's groups | `0` |
 | `modules` | The module maps of §1.3 | Empty maps |
 | `refreshOn` | Stores whose change triggers a command refresh | None |
-| `commandGate` | Disables commands the gate rejects | All enabled |
+| `commandGate` | Disables the app's commands the gate rejects; the package's commands are outside it, as they act without a document | All enabled |
 | `beforeRun` | Runs before every command | None |
 | `surfaces` | App surfaces beside the command palette and shortcut sheet | None |
 
@@ -313,6 +315,9 @@ closing-popover hook, as the sprite editor at the cut.
 - The frame shows one theme at a time, switched in its header for the whole document (so
   surfaces rendered outside the frame follow it), with one section per entry and a link to
   `licences.txt` beside the page. The switch is the gallery's own and stores nothing.
+- The site has a second page, `demo/`: the demo editor (`gallery/demo/`), with its own
+  `createEditorUi` configuration and module maps from `import.meta.glob`, as an app writes
+  them, mounted through `UiRoot`. Its theme is the instance's, stored under its id.
 - The site under `gallery/` imports the package only through its subpaths and runs the built
   package; its CSS is not minified, so the Tokens entry shows values as `tokens.css` writes
   them, and its build adds no module-preload polyfill.

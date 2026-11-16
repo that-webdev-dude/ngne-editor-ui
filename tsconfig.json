@@ -9,8 +9,10 @@
         // The gallery site imports the package by its subpaths; they are typechecked against
         // their sources, so the check needs no build first (tests/unit/gallery-imports).
         "paths": {
+            "@ngne/editor-ui": ["./src/ui/index.ts"],
             "@ngne/editor-ui/gallery": ["./src/ui/gallery/index.ts"],
-            "@ngne/editor-ui/licences/build": ["./src/build/licences/index.ts"]
+            "@ngne/editor-ui/licences/build": ["./src/build/licences/index.ts"],
+            "@ngne/editor-ui/primitives": ["./src/ui/primitives/index.ts"]
         }
     },
     "include": ["*.config.ts", "gallery", "scripts", "tests"],

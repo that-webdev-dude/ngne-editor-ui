@@ -17,9 +17,10 @@ npm run perf -- harness-baseline
 - It prints Vitest's table, then one line per measured function: mean, p75 and p99 in
   milliseconds, the margin of error of the mean and the sample count.
 
-| Benchmark          | Measures                                                            | Budget                       |
-| ------------------ | ------------------------------------------------------------------- | ---------------------------- |
-| `harness-baseline` | Building the synthetic module maps of `fixtures/editorUiModules.ts` | None: the machine's baseline |
+| Benchmark                  | Measures                                                                      | Budget                       |
+| -------------------------- | ----------------------------------------------------------------------------- | ---------------------------- |
+| `harness-baseline`         | Building the synthetic module maps of `fixtures/editorUiModules.ts`           | None: the machine's baseline |
+| `startup-create-editor-ui` | `createEditorUi` over those maps: 300 commands, 30 modules per other registry | ≤ 5 ms (SPEC §2 Startup)     |
 
 ## Writing a benchmark
 
