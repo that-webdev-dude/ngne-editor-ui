@@ -4,7 +4,9 @@
 // and contexts (BRIEF D16). The UI part: the hooks that read commands and render again only
 // when what they read changed (SPEC §2 Command refresh), running a command with failures as
 // error toasts, the chord key cap and the context-menu entries; each reads the editor UI
-// instance `UiRoot` provides or takes the registry as an argument (SPEC §1.2).
+// instance `UiRoot` provides or takes the registry as an argument (SPEC §1.2). The keys: the
+// key environment read from the page, the state contexts of an instance, and the keymap
+// installation `UiRoot` makes (SPEC §7.2).
 
 export { RegistrationError } from "../../model/modules.js";
 export {
@@ -76,5 +78,19 @@ export type {
 export { Chord } from "./Chord.js";
 export type { ChordProps } from "./Chord.js";
 export { contextMenuEntries } from "./contextMenu.js";
+export { installKeymap } from "./installKeymap.js";
+export type { KeymapEvent, KeymapOptions, KeymapTarget } from "./installKeymap.js";
+export { setKeyContext } from "./keyContextState.js";
+export type { KeyContextState } from "./keyContextState.js";
+export {
+    activeKeyContexts,
+    isTextField,
+    nativeKeysOf,
+    OVERLAY_ATTRIBUTE,
+    OVERLAY_SELECTOR,
+    readKeyEnvironment,
+    VIEWPORT_FOCUS_ATTRIBUTE,
+} from "./keyEnvironment.js";
+export type { FocusedElement, KeyContextLists, KeymapDocument } from "./keyEnvironment.js";
 export { reportCommandError, runCommand } from "./runCommand.js";
 export { useCommands, useCommandValue } from "./useCommands.js";

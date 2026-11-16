@@ -184,7 +184,9 @@ only the stored field keeps its old name.
 - **Toasts, dialog host, notices, discard question, region boundary:** as the sprite editor at
   the cut. `DiscardChangesRequest` moves with its dialog.
 - **Return focus:** pointer activation of a non-text control returns focus to the viewport
-  target the app names (`data-viewport-focus`), except inside the app's panel selector.
+  target the app names (`data-viewport-focus`), except inside the app's panel selector: the
+  selectors of its focus contexts (`keyContexts.focus`), joined. `UiRoot` applies it for its
+  instance; a control inside `[data-keep-focus]` keeps the focus.
 - **WebGPU check:** each `requestAdapter()` is limited to 5 s, with one retry; a check that
   times out shows the WebGPU-required notice (tilemap fix, BRIEF D14).
 - **Storage:** key-value access with failure reporting; keys always come from callers.
@@ -225,6 +227,13 @@ only the stored field keeps its old name.
 - Applicable contexts, as today: none while an overlay (menu, dialog, popover) is open; only
   `text` while a text field has focus; otherwise the app's active contexts in their order, then
   `canvas`, then `global`.
+- Installation: `UiRoot` installs the keymap for its instance while its `keymap` prop holds
+  (default on; an app turns it off while a notice stands in for the editor). The key
+  environment is read from the page: the viewport target (`data-viewport-focus`), an open
+  overlay (a Radix menu, dialog or list, or `data-keymap-overlay`), a text field, and the
+  focused control's native keys and typeahead. A focus context is active while focus is inside
+  an element its selector matches; a state context while it is on in the instance's store,
+  switched by `setKeyContext(editorUi, context, active)`, which refreshes the commands.
 - A key runs the first enabled command bound in the first applicable context that binds it.
   `canvas` takes a native key only while the viewport has focus. A key the focused control
   handles natively, or a typed character during typeahead, is left to the control. A browser
@@ -232,8 +241,8 @@ only the stored field keeps its old name.
 
 ## 8. Shell
 
-- **`UiRoot`:** mounts theme, modality, inert-outside, tooltip provider, dialog host, toasts,
-  and provides the editor UI instance.
+- **`UiRoot`:** mounts theme, modality, inert-outside, the keymap (§7.2), return focus (§6),
+  tooltip provider, dialog host, toasts, and provides the editor UI instance.
 - **`AppShell`:** the frame with named slots (BRIEF D17):
 
 | Slot | Filled by the app with |

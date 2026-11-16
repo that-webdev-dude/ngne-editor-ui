@@ -16,6 +16,8 @@ import type { StatusField } from "../../model/registries/statusFields.js";
 import { createToolRegistry, registerToolModules } from "../../model/tools/registry.js";
 import type { ToolRegistry } from "../../model/tools/registry.js";
 import type { ToolBase } from "../../model/tools/types.js";
+import { createKeyContextStore } from "../commands/keyContextState.js";
+import type { KeyContextState } from "../commands/keyContextState.js";
 import type { CommandDialogs } from "../messages/dialogRegistry.js";
 import { browserStorage } from "../platform/storage.js";
 import { PACKAGE_SURFACES, resolveEditorUiConfig } from "./config.js";
@@ -52,6 +54,8 @@ export interface EditorUi<
     readonly recentCommands: StoreApi<RecentCommandsState>;
     /** The package's commands, then the editor's `*.commands.ts(x)` modules. */
     readonly commands: CommandRegistry<Menu, Context>;
+    /** The state contexts of `config.keyContexts.state`, all off at startup (`setKeyContext`). */
+    readonly keyContextState: StoreApi<KeyContextState<Context>>;
     /** The command palette, the shortcut sheet and the editor's surfaces. */
     readonly surfaces: Surfaces;
     /** The `*.dialog.tsx` dialogs by request kind, for the dialog host. */
@@ -112,6 +116,9 @@ export function buildEditorUi<
         parts.commandModules as unknown as ModuleMap<CommandModule<Menu, Context>>,
     );
     registerCommandModules(commands, modules.commands);
+    // A command's condition may read a state context, as it may read the refreshOn stores.
+    const keyContextState = createKeyContextStore(resolved.keyContexts.state);
+    keyContextState.subscribe(() => commands.refresh());
     for (const source of resolved.refreshOn) source.subscribe(() => commands.refresh());
 
     const tools = createToolRegistry<Tool>();
@@ -122,6 +129,7 @@ export function buildEditorUi<
         theme: createThemeStore(storage, persistedName(id, "theme")),
         recentCommands: createRecentCommandsStore(storage, persistedName(id, "recent-commands")),
         commands,
+        keyContextState,
         surfaces: createSurfaces([...PACKAGE_SURFACES, ...Object.keys(resolved.surfaces)]),
         dialogs: collectCommandDialogs(modules.dialogs),
         dockPanels: collectDockPanels(modules.dock),

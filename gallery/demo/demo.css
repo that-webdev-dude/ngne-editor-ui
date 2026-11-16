@@ -45,3 +45,76 @@
 .demo__row + .demo__row {
     border-top: var(--border-width) solid var(--border);
 }
+
+/* The keys section (SPEC §6, §7.2) */
+.demo__keys {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-8);
+    margin: var(--space-16);
+}
+
+.demo__controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-8);
+}
+
+.demo__text-field {
+    width: 160px;
+    height: var(--control-height);
+    padding: 0 var(--space-8);
+    border: var(--border-width) solid var(--border-input);
+    border-radius: var(--radius-control);
+    background: var(--bg-raised);
+    color: var(--text);
+    user-select: text;
+}
+
+.demo__workspace {
+    display: flex;
+    gap: var(--space-8);
+    height: 160px;
+}
+
+.demo__viewport {
+    flex: 1;
+    border: var(--border-width) solid var(--border);
+    background: var(--bg-workspace);
+}
+
+.demo__panel {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-8);
+    width: 220px;
+    padding: var(--space-8);
+    border: var(--border-width) solid var(--border);
+}
+
+.demo__layers {
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.demo__layer {
+    display: flex;
+    align-items: center;
+    height: var(--control-height);
+    padding: 0 var(--space-8);
+}
+
+.demo__log {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-8);
+    min-height: var(--control-height);
+    margin: 0;
+    padding: 0;
+    color: var(--text-muted);
+    list-style: none;
+}
