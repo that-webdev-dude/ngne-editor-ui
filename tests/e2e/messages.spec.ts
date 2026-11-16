@@ -14,6 +14,7 @@ import {
     uncaughtErrors,
     WINDOWS,
 } from "./gallery-support.ts";
+import { settle } from "./surfaces-support.ts";
 
 // The message entries of the gallery (SPEC §6, §12; DESIGN §4, §5, §7): toasts bottom-centre
 // with their lifetimes; a dialog asked for through the app's dialog requests, shown by the
@@ -251,12 +252,15 @@ test.describe("messages", () => {
             ["Escape", () => page.keyboard.press("Escape")],
             ["outside click", () => page.mouse.click(8, 700)],
         ];
-        for (const [name, settle] of cancels) {
+        for (const [name, cancel] of cancels) {
             await opener.click();
             await expect(width, name).toHaveValue("65");
             await page.keyboard.press("ArrowUp");
             await expect(width, name).toHaveValue("66");
-            await settle();
+            // Radix listens for a press outside only from a timer after the dialog opens, and
+            // input queued before that timer runs first: wait for it.
+            await settle(page);
+            await cancel();
             await expect(dialog, name).toHaveCount(0);
             await expect(answer, name).toHaveText("Answer: cancelled");
             await expect(readout(page, "canvas-width"), name).toHaveText("Width: 65");
