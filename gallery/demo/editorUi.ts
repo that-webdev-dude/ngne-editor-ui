@@ -1,16 +1,19 @@
 /// <reference types="vite/client" />
 import { createEditorUi } from "@ngne/editor-ui";
 import type { EditorUiModules } from "@ngne/editor-ui";
+import { DEMO_CONTEXTS, PANEL_SELECTOR } from "./keys.ts";
+import type { DemoContext } from "./keys.ts";
 import { rowsStore } from "./rows.ts";
 
 // The gallery's demo editor (SPEC §5): its editor UI instance, configured as an editor's
 // `src/app/editorUi.ts` is. Each registry's modules are found by one `import.meta.glob` line
 // under demo/, so a demo feature joins as a new file with the registry's suffix. The stores the
-// commands read refresh them.
+// commands read refresh them. Its key contexts (SPEC §7.2): `gesture`, a state context, before
+// `panel`, a focus context whose selector is also the panel selector of return focus (SPEC §6).
 
 const MENUS = ["File", "Edit", "View", "Help"] as const;
 export type DemoMenu = (typeof MENUS)[number];
-type Modules = EditorUiModules<DemoMenu>;
+type Modules = EditorUiModules<DemoMenu, DemoContext>;
 
 /** One module of a registry's map. */
 type ModuleOf<Name extends keyof Modules> = Modules[Name][string];
@@ -27,6 +30,11 @@ export const editorUi = createEditorUi({
         changelogUrl: "https://github.com/that-webdev-dude/ngne-editor-ui/blob/main/CHANGELOG.md",
     },
     menus: MENUS,
+    keyContexts: {
+        order: DEMO_CONTEXTS,
+        state: ["gesture"],
+        focus: { panel: PANEL_SELECTOR },
+    },
     modules: {
         commands: import.meta.glob<ModuleOf<"commands">>("./**/*.commands.{ts,tsx}", {
             eager: true,
