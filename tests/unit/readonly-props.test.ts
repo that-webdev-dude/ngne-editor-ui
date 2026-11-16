@@ -6,7 +6,8 @@ import { describe, expect, it } from "vitest";
 
 // Every exported React component under src/ui declares its props `Readonly` (BRIEF D14, the
 // tilemap editor's fix): the first parameter of an exported component, a function whose name
-// starts with a capital, is typed `Readonly<…>`. A component that takes no props passes.
+// starts with a capital, is typed `Readonly<…>`, and so is the props type an exported class
+// component gives `Component`. A component that takes no props passes.
 
 const ROOT = fileURLToPath(new URL("../../", import.meta.url));
 
@@ -36,17 +37,35 @@ function functionOf(initializer: ts.Expression | undefined): ts.SignatureDeclara
     return null;
 }
 
+/** Whether `type` is written `Readonly<…>`. */
+const isReadonlyType = (type: ts.TypeNode | undefined) =>
+    !!type &&
+    ts.isTypeReferenceNode(type) &&
+    ts.isIdentifier(type.typeName) &&
+    type.typeName.text === "Readonly";
+
 /** Whether the props parameter is typed `Readonly<…>`; true when there is none. */
 function readonlyProps(fn: ts.SignatureDeclaration): boolean {
     const props = fn.parameters[0];
-    if (!props) return true;
-    const type = props.type;
-    return (
-        !!type &&
-        ts.isTypeReferenceNode(type) &&
-        ts.isIdentifier(type.typeName) &&
-        type.typeName.text === "Readonly"
-    );
+    return !props || isReadonlyType(props.type);
+}
+
+/**
+ * The props type a class component declares: the first type argument of the `Component` or
+ * `PureComponent` it extends (bare or `React.`), or null for another class. A class component
+ * that gives no props type has `undefined` here.
+ */
+function classProps(node: ts.ClassDeclaration): ts.TypeNode | undefined | null {
+    for (const clause of node.heritageClauses ?? []) {
+        if (clause.token !== ts.SyntaxKind.ExtendsKeyword) continue;
+        for (const base of clause.types) {
+            const name = ts.isPropertyAccessExpression(base.expression)
+                ? base.expression.name.text
+                : base.expression.getText();
+            if (name === "Component" || name === "PureComponent") return base.typeArguments?.[0];
+        }
+    }
+    return null;
 }
 
 /** The exported components of a module whose props are not `Readonly`, as "file: Name". */
@@ -58,6 +77,11 @@ function mutableProps(file: string, text: string): string[] {
         if (ts.isFunctionDeclaration(statement) && statement.name) {
             const name = statement.name.text;
             if (isComponentName(name) && !readonlyProps(statement)) found.push(`${file}: ${name}`);
+        } else if (ts.isClassDeclaration(statement) && statement.name) {
+            const props = classProps(statement);
+            if (props !== null && props !== undefined && !isReadonlyType(props)) {
+                found.push(`${file}: ${statement.name.text}`);
+            }
         } else if (ts.isVariableStatement(statement)) {
             for (const declaration of statement.declarationList.declarations) {
                 if (!ts.isIdentifier(declaration.name)) continue;
@@ -79,6 +103,8 @@ describe("Readonly props", () => {
         expect(modules).toEqual(
             expect.arrayContaining([
                 "src/ui/gallery/Gallery.tsx",
+                "src/ui/messages/DialogHost.tsx",
+                "src/ui/messages/RegionBoundary.tsx",
                 "src/ui/primitives/Button.tsx",
                 "src/ui/primitives/Splitter.tsx",
             ]),
@@ -107,6 +133,12 @@ describe("Readonly props", () => {
             "export function helper(props: Props) { return props.label; }",
             "function Local({ label }: Props) { return <b>{label}</b>; }",
             "export const Slot = ({ children }: { children: ReactNode }) => <>{children}</>;",
+            "export class Boundary extends Component<Props, State> {}",
+            "export class Pure extends React.PureComponent<{ label: string }> {}",
+            "export class GoodBoundary extends Component<Readonly<Props>, State> {}",
+            "export class NoPropsBoundary extends Component {}",
+            "export class Store extends Map<string, Props> {}",
+            "class LocalBoundary extends Component<Props> {}",
         ].join("\n");
         expect(mutableProps("fixture.tsx", text)).toEqual([
             "fixture.tsx: Mutable",
@@ -115,6 +147,8 @@ describe("Readonly props", () => {
             "fixture.tsx: Memo",
             "fixture.tsx: Untyped",
             "fixture.tsx: Slot",
+            "fixture.tsx: Boundary",
+            "fixture.tsx: Pure",
         ]);
     });
 });
