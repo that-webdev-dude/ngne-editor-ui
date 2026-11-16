@@ -1,4 +1,5 @@
-/* The gallery (SPEC §12): its frame, then the Tokens entry. Tokens only (SPEC §9.2). */
+/* The gallery (SPEC §12): its frame, the Tokens entry, then the primitive entries. Tokens
+   only (SPEC §9.2). */
 .gallery {
     height: 100%;
     overflow-y: auto;
@@ -188,4 +189,68 @@
     border-radius: var(--radius-control);
     outline: var(--focus-ring-width) solid var(--accent);
     outline-offset: var(--focus-ring-offset);
+}
+
+/* Primitive entries (DESIGN §4) */
+.gallery__row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-12);
+}
+
+.gallery__column {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-8);
+}
+
+.gallery__readout {
+    color: var(--text-muted);
+}
+
+.gallery__target {
+    display: grid;
+    place-items: center;
+    height: 56px;
+    padding: 0 var(--space-16);
+    border: var(--border-width) dashed var(--border-input);
+    border-radius: var(--radius-control);
+    color: var(--text-muted);
+}
+
+.gallery__split {
+    display: flex;
+    width: 100%;
+    max-width: 640px;
+    height: 56px;
+    border: var(--border-width) solid var(--border);
+}
+
+.gallery__pane {
+    display: grid;
+    flex: none;
+    place-items: center;
+    background: var(--bg-raised);
+    color: var(--text-muted);
+}
+
+.gallery__pane--rest {
+    flex: 1;
+    background: var(--bg-workspace);
+}
+
+.gallery__icons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-16);
+    list-style: none;
+}
+
+.gallery__icon {
+    display: flex;
+    align-items: center;
+    gap: var(--space-8);
+    min-height: var(--control-height);
 }
