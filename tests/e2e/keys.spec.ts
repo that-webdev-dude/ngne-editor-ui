@@ -113,7 +113,8 @@ test.describe("keys on the demo editor", () => {
     });
 
     test("no command runs while a dialog is open", async ({ page }) => {
-        await page.getByRole("button", { name: "Open dialog" }).click();
+        const opener = page.getByRole("button", { name: "Open dialog" });
+        await opener.click();
         const dialog = page.getByRole("dialog", { name: "Demo dialog" });
         await expect(dialog).toBeVisible();
         expect(await ranAfter(page, ["KeyJ", "Alt+KeyJ", "Control+KeyF"])).toEqual([]);
@@ -122,6 +123,9 @@ test.describe("keys on the demo editor", () => {
 
         await dialog.getByRole("button", { name: "Close" }).click();
         await expect(dialog).toBeHidden();
+        // Radix gives the focus back to the opener one timer after the dialog has gone; focusing
+        // the viewport before that loses it to the opener.
+        await expect(opener).toBeFocused();
         await focus(viewport(page));
         expect(await ranAfter(page, ["KeyJ"])).toEqual(["canvas J"]);
     });
