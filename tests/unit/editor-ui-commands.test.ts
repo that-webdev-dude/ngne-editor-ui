@@ -1,7 +1,18 @@
 import { createStore } from "zustand/vanilla";
 import { describe, expect, it, vi } from "vitest";
 import { RegistrationError } from "../../src/model/modules.ts";
-import type { CommandModule, CommandSpec } from "../../src/ui/commands/index.ts";
+import {
+    buildMenu,
+    COMMAND_PALETTE_COMMAND,
+    resolveKey,
+    SHORTCUT_SHEET_COMMAND,
+} from "../../src/ui/commands/index.ts";
+import type {
+    CommandModule,
+    CommandSpec,
+    KeyEnvironment,
+    MenuNode,
+} from "../../src/ui/commands/index.ts";
 import { buildEditorUi } from "../../src/ui/editorUi/createEditorUi.ts";
 import type { PackageParts } from "../../src/ui/editorUi/createEditorUi.ts";
 import {
@@ -15,7 +26,9 @@ import type { AppInfo, EditorUiConfig } from "../../src/ui/index.ts";
 // modules register before the editor's, so an editor's command that takes a package command's
 // id or chord fails at startup, naming the editor's module; the editor's `commandGate` and
 // `refreshOn` stores act on its own commands, `beforeRun` on every command. The package's
-// modules are a fixture here, passed as `createEditorUi` passes the real list.
+// modules are a fixture here, passed as `createEditorUi` passes the real list, except in the
+// last block: the real command palette and shortcut sheet commands, their chords and contexts,
+// their menu places (Keyboard Shortcuts… first in Help) and the surfaces they open.
 
 type Menu = "File" | "Edit" | "View" | "Help";
 
@@ -41,7 +54,7 @@ const APP_PATH = "/src/app/feature/feature.commands.ts";
 /** The package's parts with one fixture module: a palette-like command without a condition. */
 const PACKAGE: PackageParts = {
     commandModules: {
-        [PACKAGE_PATH]: {
+        [PACKAGE_PATH]: () => ({
             commands: [
                 { id: "package.palette", title: "Palette", shortcut: "Ctrl+K", run: () => {} },
                 {
@@ -52,7 +65,7 @@ const PACKAGE: PackageParts = {
                     run: () => {},
                 },
             ],
-        },
+        }),
     },
 };
 
@@ -113,6 +126,7 @@ describe("package commands", () => {
     it("are the package's own list in createEditorUi, each module under the package's prefix", () => {
         const editorUi = createEditorUi(BASE);
         const packageIds = Object.values(PACKAGE_COMMAND_MODULES)
+            .map((module) => module({ surfaces: editorUi.surfaces }))
             .flatMap((module) => [...(module.commands ?? []), ...(module.plannedCommands ?? [])])
             .map((spec) => spec.id)
             .sort();
@@ -204,5 +218,185 @@ describe("refreshOn", () => {
         editorUi.commands.subscribe(refreshed);
         store.setState({ value: 1 });
         expect(refreshed).not.toHaveBeenCalled();
+    });
+});
+
+describe("the command palette and shortcut sheet commands (SPEC §7.1, §11)", () => {
+    const PALETTE_SOURCE = `${PACKAGE_COMMAND_SOURCE}commands/commandPalette.commands.ts`;
+    const SHEET_SOURCE = `${PACKAGE_COMMAND_SOURCE}commands/shortcutSheet.commands.ts`;
+
+    /** An instance of the real package over the editor's module and `config`. */
+    function editor(
+        module: CommandModule<Menu> = { commands: [] },
+        config: Partial<EditorUiConfig<Menu>> = {},
+    ) {
+        return createEditorUi({
+            ...BASE,
+            ...config,
+            modules: { commands: { [APP_PATH]: module } },
+        });
+    }
+
+    /** The ids of a menu's commands, with "---" for a separator. */
+    function outline(nodes: readonly MenuNode[]): string[] {
+        return nodes.map((node) => (node.kind === "command" ? node.command.id : "---"));
+    }
+
+    /** A key pressed with nothing open; the focus on the viewport unless stated otherwise. */
+    function environment(overrides: Partial<KeyEnvironment> = {}): KeyEnvironment {
+        return {
+            overlayOpen: false,
+            focus: "viewport",
+            nativeKeys: new Set(),
+            typeahead: false,
+            ...overrides,
+        };
+    }
+
+    it("are the package's commands, each from a module of its own", () => {
+        const { commands } = editor();
+        expect(COMMAND_PALETTE_COMMAND).toBe("edit.commandPalette");
+        expect(SHORTCUT_SHEET_COMMAND).toBe("edit.shortcuts");
+        expect(commands.list().map((command) => command.id)).toEqual(
+            expect.arrayContaining([COMMAND_PALETTE_COMMAND, SHORTCUT_SHEET_COMMAND]),
+        );
+        expect(commands.get(COMMAND_PALETTE_COMMAND)).toMatchObject({
+            source: PALETTE_SOURCE,
+            planned: false,
+        });
+        expect(commands.get(SHORTCUT_SHEET_COMMAND)).toMatchObject({
+            source: SHEET_SOURCE,
+            planned: false,
+        });
+        expect(commands.get(COMMAND_PALETTE_COMMAND)!.title()).toBe("Command Palette…");
+        expect(commands.get(SHORTCUT_SHEET_COMMAND)!.title()).toBe("Keyboard Shortcuts…");
+    });
+
+    it("the palette binds Ctrl+K in global and text, and names no menu", () => {
+        expect(editor().commands.get(COMMAND_PALETTE_COMMAND)).toMatchObject({
+            shortcuts: ["Ctrl+K"],
+            contexts: ["global", "text"],
+            menuPath: null,
+            release: null,
+        });
+    });
+
+    it("the sheet binds ? in canvas only, in the Help menu", () => {
+        expect(editor().commands.get(SHORTCUT_SHEET_COMMAND)).toMatchObject({
+            shortcuts: ["?"],
+            contexts: ["canvas"],
+            menuPath: ["Help"],
+            menuOrder: 0,
+            release: null,
+        });
+    });
+
+    it("Ctrl+K reaches the palette everywhere but under an overlay, where it is suppressed", () => {
+        const { commands } = editor();
+        const palette = commands.get(COMMAND_PALETTE_COMMAND);
+        const resolved = (overrides: Partial<KeyEnvironment>) =>
+            resolveKey(commands, "Ctrl+K", environment(overrides), []);
+        expect(resolved({})).toMatchObject({ action: "run", command: palette });
+        expect(resolved({ focus: "none" })).toMatchObject({ action: "run", command: palette });
+        expect(resolved({ focus: "control" })).toMatchObject({ action: "run", command: palette });
+        expect(resolved({ focus: "text" })).toMatchObject({
+            action: "run",
+            command: palette,
+            context: "text",
+        });
+        expect(resolved({ overlayOpen: true })).toEqual({ action: "suppress" });
+    });
+
+    it("? reaches the sheet in canvas; a text field, a typeahead or an overlay keeps it", () => {
+        const { commands } = editor();
+        const sheet = commands.get(SHORTCUT_SHEET_COMMAND);
+        const resolved = (overrides: Partial<KeyEnvironment>) =>
+            resolveKey(commands, "?", environment(overrides), []);
+        expect(resolved({})).toMatchObject({ action: "run", command: sheet, context: "canvas" });
+        expect(resolved({ focus: "none" })).toMatchObject({ action: "run", command: sheet });
+        expect(resolved({ focus: "control" })).toMatchObject({ action: "run", command: sheet });
+        expect(resolved({ focus: "text" })).toEqual({ action: "pass" });
+        expect(resolved({ focus: "control", typeahead: true })).toEqual({ action: "pass" });
+        expect(resolved({ overlayOpen: true })).toEqual({ action: "pass" });
+    });
+
+    it("Keyboard Shortcuts… is the first item of Help, ahead of the editor's items there", () => {
+        const help = (module: CommandModule<Menu>) =>
+            outline(buildMenu(editor(module).commands.list(), ["Help"]));
+        expect(help({ commands: [] })).toEqual([SHORTCUT_SHEET_COMMAND]);
+        expect(
+            help({
+                commands: [
+                    { id: "help.guide", title: "Guide", menuPath: ["Help"], run },
+                    { id: "help.tips", title: "Tips", menuPath: ["Help"], menuOrder: 1, run },
+                    { id: "help.site", title: "Site", menuPath: ["Help"], menuOrder: 100, run },
+                ],
+            }),
+        ).toEqual([SHORTCUT_SHEET_COMMAND, "help.tips", "---", "help.site", "---", "help.guide"]);
+        // An editor's plan for the sheet's id does not move it: the command names its place.
+        expect(
+            help({
+                plannedCommands: [
+                    {
+                        id: SHORTCUT_SHEET_COMMAND,
+                        title: "Keyboard Shortcuts…",
+                        menuPath: ["Help"],
+                        menuOrder: 100,
+                    },
+                ],
+                commands: [
+                    { id: "help.tips", title: "Tips", menuPath: ["Help"], menuOrder: 50, run },
+                ],
+            }),
+        ).toEqual([SHORTCUT_SHEET_COMMAND, "help.tips"]);
+    });
+
+    it("the palette takes the menu item an editor plans for its id", () => {
+        const { commands } = editor({
+            plannedCommands: [
+                {
+                    id: COMMAND_PALETTE_COMMAND,
+                    title: "Command Palette…",
+                    menuPath: ["Edit"],
+                    menuOrder: 900,
+                },
+            ],
+        });
+        expect(commands.get(COMMAND_PALETTE_COMMAND)).toMatchObject({
+            planned: false,
+            source: PALETTE_SOURCE,
+            menuPath: ["Edit"],
+            menuOrder: 900,
+            shortcuts: ["Ctrl+K"],
+        });
+    });
+
+    it("each opens its surface in its own instance, outside the editor's gate", async () => {
+        const first = editor(undefined, { commandGate: () => false });
+        const second = editor();
+        const open = (editorUi: ReturnType<typeof editor>) =>
+            editorUi.surfaces.store.getState().open;
+        expect(first.commands.get(COMMAND_PALETTE_COMMAND)!.enabled()).toBe(true);
+        expect(first.commands.get(SHORTCUT_SHEET_COMMAND)!.enabled()).toBe(true);
+
+        await first.commands.get(COMMAND_PALETTE_COMMAND)!.run();
+        expect(open(first)).toBe("command-palette");
+        expect(open(second)).toBeNull();
+        await first.commands.get(SHORTCUT_SHEET_COMMAND)!.run();
+        expect(open(first)).toBe("shortcut-sheet");
+        await second.commands.get(COMMAND_PALETTE_COMMAND)!.run();
+        expect(open(second)).toBe("command-palette");
+        expect(open(first)).toBe("shortcut-sheet");
+    });
+
+    it("an editor's surface is tracked with the package's: one open at a time", async () => {
+        const Preferences = () => null;
+        const editorUi = editor(undefined, { surfaces: { preferences: Preferences } });
+        expect(editorUi.surfaces.ids).toEqual(["command-palette", "shortcut-sheet", "preferences"]);
+        editorUi.surfaces.open("preferences");
+        await editorUi.commands.get(COMMAND_PALETTE_COMMAND)!.run();
+        expect(editorUi.surfaces.store.getState().open).toBe("command-palette");
+        editorUi.surfaces.open("preferences");
+        expect(editorUi.surfaces.store.getState().open).toBe("preferences");
     });
 });

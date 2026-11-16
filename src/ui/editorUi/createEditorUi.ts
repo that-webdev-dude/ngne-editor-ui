@@ -23,7 +23,7 @@ import { browserStorage } from "../platform/storage.js";
 import { PACKAGE_SURFACES, resolveEditorUiConfig } from "./config.js";
 import type { EditorUiConfig, ResolvedEditorUiConfig } from "./config.js";
 import { PACKAGE_COMMAND_MODULES, PACKAGE_COMMAND_SOURCE } from "./packageCommands.js";
-import type { PackageMenu } from "./packageCommands.js";
+import type { PackageCommandModule, PackageCommandScope, PackageMenu } from "./packageCommands.js";
 import { createRecentCommandsStore } from "./recentCommands.js";
 import type { RecentCommandsState } from "./recentCommands.js";
 import { createSurfaces } from "./surfaces.js";
@@ -81,8 +81,18 @@ export const persistedName = (id: string, name: "theme" | "recent-commands"): st
 
 /** What the package itself adds to every instance; a parameter so tests can pass fixtures. */
 export interface PackageParts {
-    /** The package's command modules, registered before the editor's. */
-    commandModules: ModuleMap<CommandModule<PackageMenu, never>>;
+    /** The package's command modules, each called with the instance, registered before the editor's. */
+    commandModules: ModuleMap<PackageCommandModule>;
+}
+
+/** The package's modules as one instance registers them: each called with its scope. */
+function packageModulesFor(
+    modules: ModuleMap<PackageCommandModule>,
+    scope: PackageCommandScope,
+): ModuleMap<CommandModule<PackageMenu, never>> {
+    return Object.fromEntries(
+        Object.entries(modules).map(([path, module]) => [path, module(scope)]),
+    );
 }
 
 /**
@@ -102,6 +112,7 @@ export function buildEditorUi<
     const resolved = resolveEditorUiConfig(config);
     const { id, modules } = resolved;
     const storage = browserStorage();
+    const surfaces = createSurfaces([...PACKAGE_SURFACES, ...Object.keys(resolved.surfaces)]);
 
     const commands = createCommandRegistry<Menu, Context>({
         menus: resolved.menus,
@@ -113,7 +124,9 @@ export function buildEditorUi<
     // The menu bar has View and Help (checked above), the only menus a package command names.
     registerCommandModules(
         commands,
-        parts.commandModules as unknown as ModuleMap<CommandModule<Menu, Context>>,
+        packageModulesFor(parts.commandModules, { surfaces }) as unknown as ModuleMap<
+            CommandModule<Menu, Context>
+        >,
     );
     registerCommandModules(commands, modules.commands);
     // A command's condition may read a state context, as it may read the refreshOn stores.
@@ -130,7 +143,7 @@ export function buildEditorUi<
         recentCommands: createRecentCommandsStore(storage, persistedName(id, "recent-commands")),
         commands,
         keyContextState,
-        surfaces: createSurfaces([...PACKAGE_SURFACES, ...Object.keys(resolved.surfaces)]),
+        surfaces,
         dialogs: collectCommandDialogs(modules.dialogs),
         dockPanels: collectDockPanels(modules.dock),
         contextBarContent: collectContextBarContent(modules.contextBars),

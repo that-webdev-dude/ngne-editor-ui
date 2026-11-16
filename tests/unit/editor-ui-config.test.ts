@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { RegistrationError } from "../../src/model/modules.ts";
+import { PACKAGE_COMMAND_SOURCE } from "../../src/ui/editorUi/packageCommands.ts";
 import { createEditorUi } from "../../src/ui/index.ts";
 import type { AppInfo, EditorUiConfig } from "../../src/ui/index.ts";
 
@@ -177,7 +178,11 @@ describe("createEditorUi hands every module map to its registry (SPEC §1.3)", (
     });
 
     it("registers or collects what each module exports", () => {
-        expect(editorUi.commands.list().map((command) => [command.id, command.source])).toEqual([
+        // The editor's commands; the package's own are tested in editor-ui-commands.
+        const editorCommands = editorUi.commands
+            .list()
+            .filter((command) => !command.source.startsWith(PACKAGE_COMMAND_SOURCE));
+        expect(editorCommands.map((command) => [command.id, command.source])).toEqual([
             ["a.later", "/src/a.commands.ts"],
             ["b.run", "/src/b.commands.ts"],
         ]);
