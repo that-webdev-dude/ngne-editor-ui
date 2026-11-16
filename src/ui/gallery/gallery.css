@@ -254,3 +254,43 @@
     gap: var(--space-8);
     min-height: var(--control-height);
 }
+
+/* Message entries (DESIGN §5, §7) */
+.gallery__notice {
+    position: relative;
+    height: 480px;
+    overflow: hidden;
+    border: var(--border-width) solid var(--border);
+    /* The containing block of the notice, which fills the window in an app. */
+    contain: paint;
+}
+
+.gallery__regions {
+    display: flex;
+    gap: var(--space-12);
+    max-width: 640px;
+}
+
+.gallery__region {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    min-width: 0;
+    height: 56px;
+    border: var(--border-width) solid var(--border);
+}
+
+.gallery__region--narrow {
+    flex: none;
+    justify-content: center;
+    width: 44px;
+}
+
+.gallery__fragile {
+    padding: var(--space-4) var(--space-12);
+    color: var(--text-muted);
+}
+
+.gallery__region--narrow .gallery__fragile {
+    padding: 0;
+}
