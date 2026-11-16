@@ -39,7 +39,7 @@ test.describe("demo editor through UiRoot", () => {
     }) => {
         const errors = uncaughtErrors(page);
         await openDemo(page);
-        await expect(page.locator(`main[data-editor-ui="${ID}"]`)).toBeVisible();
+        await expect(page.locator(`[data-editor-ui="${ID}"]`)).toBeVisible();
         await expect(page).toHaveTitle("NGNE Demo Editor");
         const toasts = page.getByRole("region", { name: "Notifications" });
         await expect(toasts).toHaveCount(1);
@@ -87,7 +87,7 @@ test.describe("demo editor through UiRoot", () => {
             if (theme === "light") await chooseTheme(page, "light");
             // DESIGN §3.1: the accent of each token set.
             expect(await accent(page)).toBe(theme === "dark" ? "#83e8e1" : "#087f78");
-            await expect(page.locator(`main[data-editor-ui="${ID}"]`)).toBeVisible();
+            await expect(page.locator(`[data-editor-ui="${ID}"]`)).toBeVisible();
             const result = await audit(page);
             expect(result.violations).toEqual([]);
             expect(result.contrastUndecided).toEqual([]);

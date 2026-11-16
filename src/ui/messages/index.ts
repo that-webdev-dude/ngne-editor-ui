@@ -40,3 +40,5 @@ export type {
 export { ToastViewport } from "./ToastViewport.js";
 export { WebGpuRequired } from "./WebGpuRequired.js";
 export type { WebGpuRequiredProps } from "./WebGpuRequired.js";
+export { WindowTooSmall } from "./WindowTooSmall.js";
+export type { WindowTooSmallProps } from "./WindowTooSmall.js";

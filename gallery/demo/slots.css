@@ -1,0 +1,46 @@
+/* The demo editor's shell slots (SPEC §8). Tokens only (SPEC §9.2). */
+
+/* The viewport slot: the demo's content scrolls where the region is shorter than it. */
+.demo-viewport {
+    position: absolute;
+    inset: 0;
+    overflow-y: auto;
+    background: var(--bg-panel);
+}
+
+.demo-viewport .demo {
+    height: auto;
+}
+
+.demo-viewport__document {
+    margin: var(--space-16);
+}
+
+/* The bottom region slot: a row of frames. */
+.demo-bottom {
+    display: flex;
+    align-items: center;
+    gap: var(--space-12);
+    padding: var(--space-12);
+}
+
+.demo-bottom__frames {
+    display: flex;
+    gap: var(--space-4);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+/* The noDocument slot: plain text buttons, centred (DESIGN §6). */
+.demo-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-8);
+}
+
+.demo-empty__text {
+    margin: 0;
+    color: var(--text-muted);
+}

@@ -7,7 +7,8 @@ import { DemoRows } from "./DemoRows.tsx";
 import { PREFERENCES_COMMAND } from "./preferences.ts";
 import { THEMES } from "./themes.ts";
 
-// The demo editor's content, read from the instance `UiRoot` provides. An editor sets the theme
+// The demo editor's content, read from the instance `UiRoot` provides; the shell shows it in
+// its viewport region (DemoViewport.tsx). An editor sets the theme
 // from its Preferences (SPEC §1.3); the demo has the one control in its header as well. The
 // header opens the editor's Preferences surface and the command palette (its trigger); the
 // page names the open surface of the instance in `data-open-surface` (SPEC §7.1).
@@ -17,7 +18,7 @@ export function DemoEditor() {
     const theme = useTheme();
     const open = useStore(editorUi.surfaces.store, (state) => state.open);
     return (
-        <main
+        <div
             className="demo"
             data-editor-ui={editorUi.config.id}
             data-open-surface={open ?? undefined}
@@ -43,6 +44,6 @@ export function DemoEditor() {
             </p>
             <DemoRows />
             <DemoKeys />
-        </main>
+        </div>
     );
 }

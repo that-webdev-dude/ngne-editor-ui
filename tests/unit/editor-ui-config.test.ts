@@ -254,6 +254,16 @@ describe("createEditorUi refuses an invalid configuration at startup, naming the
             /config\.keyContexts\.focus .*"panel"/,
         ],
         ["a bottom region without a label", { bottomRegion: { id: "x" } }, /config\.bottomRegion/],
+        [
+            "a bottom region id that is not lowercase words joined by hyphens",
+            { bottomRegion: { id: "Bottom panel", label: "Bottom Panel" } },
+            /config\.bottomRegion id "Bottom panel" is not lowercase/,
+        ],
+        [
+            "a bottom region with the id of another region of the shell",
+            { bottomRegion: { id: "dock", label: "Dock" } },
+            /config\.bottomRegion id "dock" is the id of another region/,
+        ],
         ["a negative rail footer", { railFooterHeight: -1 }, /config\.railFooterHeight/],
         [
             "a rail footer that is not a number",

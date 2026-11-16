@@ -9,6 +9,7 @@ import type { StatusFieldModule } from "../../model/registries/statusFields.js";
 import type { OverlayLayerModule } from "../../model/overlay/layers.js";
 import type { ToolBase, ToolModule } from "../../model/tools/types.js";
 import type { CommandDialogModule } from "../messages/dialogRegistry.js";
+import { SHELL_REGIONS } from "../shell/regions.js";
 
 // What an editor passes to `createEditorUi` (SPEC §5): its identity, its lists and its hooks,
 // every optional field with its default, and the checks that stop the editor at startup when
@@ -41,9 +42,12 @@ export interface EditorUiKeyContexts<Context extends string = string> {
 
 /** The region under the viewport and the dock (SPEC §8): the sprite editor's timeline. */
 export interface BottomRegion {
-    /** Its `data-region`. */
+    /**
+     * Its `data-region`, lowercase words joined by hyphens; its Tab toggle's command id is
+     * `view.` and this id in camel case (`timeline` → `view.timeline`).
+     */
     readonly id: string;
-    /** Its accessible name. */
+    /** Its accessible name, title case: the toggle is titled "Hide <label>" / "Show <label>". */
     readonly label: string;
 }
 
@@ -197,6 +201,13 @@ function resolveBottomRegion(region: BottomRegion | null | undefined): BottomReg
     if (region === undefined || region === null) return null;
     if (!isText(region.id) || !isText(region.label)) {
         fail("bottomRegion", "needs an id and a label, or is null.");
+    }
+    // The id is the region's `data-region` and names its toggle command (`view.<camelCase>`).
+    if (!ID_PATTERN.test(region.id)) {
+        fail("bottomRegion", `id "${region.id}" is not lowercase words joined by hyphens.`);
+    }
+    if ((SHELL_REGIONS as readonly string[]).includes(region.id)) {
+        fail("bottomRegion", `id "${region.id}" is the id of another region of the shell.`);
     }
     return region;
 }

@@ -1,7 +1,26 @@
-// Entry module of `@ngne/editor-ui/shell` (SPEC §4, §8). The Model part so far: the tool base
-// and the tool registry, generic over the editor's tool type (BRIEF D18).
+// Entry module of `@ngne/editor-ui/shell` (SPEC §4, §8): the `AppShell` frame with its slots,
+// the layout maths and the instance's layout and bottom-region stores, the F6 regions and the
+// package commands of the shell; the tool base and the tool registry, generic over the editor's
+// tool type (BRIEF D18).
 
 export { RegistrationError } from "../../model/modules.js";
+export {
+    BOTTOM_HEIGHT,
+    bottomMaxHeight,
+    defaultBottomHeight,
+    DOCK_WIDTH,
+    isWindowTooSmall,
+    MIN_WINDOW_HEIGHT,
+    MIN_WINDOW_WIDTH,
+    parseStoredLayout,
+    RAIL,
+    railColumns,
+    railOneColumnHeight,
+    resolveBottomHeight,
+    resolveDockWidth,
+    storedLayout,
+} from "../../model/shell/layout.js";
+export type { LayoutSizes } from "../../model/shell/layout.js";
 export {
     createToolRegistry,
     railGroups,
@@ -23,3 +42,19 @@ export type {
     ToolOptionSpec,
     ToolOptionValue,
 } from "../../model/tools/types.js";
+
+export { AppShell, useWindowTooSmall } from "./AppShell.js";
+export type { AppShellProps } from "./AppShell.js";
+export { setBottomRegionVisible } from "./bottomRegion.js";
+export type { BottomRegionState } from "./bottomRegion.js";
+export { bottomRegionCommand } from "./bottomRegion.commands.js";
+export type { LayoutState } from "./layoutStore.js";
+export {
+    cycleFocusRegion,
+    REGION_ATTRIBUTE,
+    REGION_FOCUS_ATTRIBUTE,
+    regionFocusTarget,
+    SHELL_REGIONS,
+} from "./regions.js";
+export type { ShellRegion } from "./regions.js";
+export { NEXT_REGION_COMMAND, PREVIOUS_REGION_COMMAND } from "./regions.commands.js";

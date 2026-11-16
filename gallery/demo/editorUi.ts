@@ -12,6 +12,15 @@ import { rowsStore } from "./rows.ts";
 // commands read refresh them. Its key contexts (SPEC §7.2): `gesture`, a state context, before
 // `panel`, a focus context whose selector is also the panel selector of return focus (SPEC §6).
 // Its own surface: a fixture Preferences dialog, beside the package's (SPEC §5 `surfaces`).
+// Its bottom region (SPEC §5 `bottomRegion`): the Timeline, toggled by Tab as `view.timeline`.
+// The page opened with `?bottom=none` builds the instance without one, the configuration of an
+// editor that has no bottom region.
+
+/** The bottom region, or none when the page's address asks for none. */
+const BOTTOM_REGION =
+    new URLSearchParams(window.location.search).get("bottom") === "none"
+        ? null
+        : { id: "timeline", label: "Timeline" };
 
 const MENUS = ["File", "Edit", "View", "Help"] as const;
 export type DemoMenu = (typeof MENUS)[number];
@@ -37,6 +46,7 @@ export const editorUi = createEditorUi({
         state: ["gesture"],
         focus: { panel: PANEL_SELECTOR },
     },
+    bottomRegion: BOTTOM_REGION,
     modules: {
         commands: import.meta.glob<ModuleOf<"commands">>("./**/*.commands.{ts,tsx}", {
             eager: true,
