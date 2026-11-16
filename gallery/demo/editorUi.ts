@@ -3,6 +3,7 @@ import { createEditorUi } from "@ngne/editor-ui";
 import type { EditorUiModules } from "@ngne/editor-ui";
 import { DEMO_CONTEXTS, PANEL_SELECTOR } from "./keys.ts";
 import type { DemoContext } from "./keys.ts";
+import { PreferencesDialog } from "./PreferencesDialog.tsx";
 import { rowsStore } from "./rows.ts";
 
 // The gallery's demo editor (SPEC §5): its editor UI instance, configured as an editor's
@@ -10,6 +11,7 @@ import { rowsStore } from "./rows.ts";
 // under demo/, so a demo feature joins as a new file with the registry's suffix. The stores the
 // commands read refresh them. Its key contexts (SPEC §7.2): `gesture`, a state context, before
 // `panel`, a focus context whose selector is also the panel selector of return focus (SPEC §6).
+// Its own surface: a fixture Preferences dialog, beside the package's (SPEC §5 `surfaces`).
 
 const MENUS = ["File", "Edit", "View", "Help"] as const;
 export type DemoMenu = (typeof MENUS)[number];
@@ -53,4 +55,5 @@ export const editorUi = createEditorUi({
         }),
     },
     refreshOn: [rowsStore],
+    surfaces: { preferences: PreferencesDialog },
 });

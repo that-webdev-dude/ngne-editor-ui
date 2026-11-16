@@ -6,7 +6,9 @@
 // error toasts, the chord key cap and the context-menu entries; each reads the editor UI
 // instance `UiRoot` provides or takes the registry as an argument (SPEC §1.2). The keys: the
 // key environment read from the page, the state contexts of an instance, and the keymap
-// installation `UiRoot` makes (SPEC §7.2).
+// installation `UiRoot` makes (SPEC §7.2). The surfaces: the command palette, its trigger, the
+// shortcut sheet, the ids of the package commands that open them, and the host that shows the
+// open surface of an instance, the package's or the editor's (SPEC §7.1).
 
 export { RegistrationError } from "../../model/modules.js";
 export {
@@ -77,6 +79,9 @@ export type {
 
 export { Chord } from "./Chord.js";
 export type { ChordProps } from "./Chord.js";
+export { COMMAND_PALETTE_COMMAND } from "./commandPalette.commands.js";
+export { CommandPalette } from "./CommandPalette.js";
+export { CommandPaletteTrigger } from "./CommandPaletteTrigger.js";
 export { contextMenuEntries } from "./contextMenu.js";
 export { installKeymap } from "./installKeymap.js";
 export type { KeymapEvent, KeymapOptions, KeymapTarget } from "./installKeymap.js";
@@ -93,4 +98,7 @@ export {
 } from "./keyEnvironment.js";
 export type { FocusedElement, KeyContextLists, KeymapDocument } from "./keyEnvironment.js";
 export { reportCommandError, runCommand } from "./runCommand.js";
+export { SHORTCUT_SHEET_COMMAND } from "./shortcutSheet.commands.js";
+export { ShortcutSheet } from "./ShortcutSheet.js";
+export { SurfaceHost } from "./SurfaceHost.js";
 export { useCommands, useCommandValue } from "./useCommands.js";

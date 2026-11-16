@@ -14,6 +14,20 @@
     border-bottom: var(--border-width) solid var(--border);
 }
 
+.demo__actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-12);
+}
+
+/* The fixture Preferences dialog (DESIGN §7): theme first, then the editor's settings. */
+.demo__preferences {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-12);
+}
+
 .demo__heading {
     margin: 0;
     font-size: var(--font-size-title);

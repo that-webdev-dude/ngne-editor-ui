@@ -216,7 +216,12 @@ only the stored field keeps its old name.
   `findChordConflicts(registry)` reports the enabled commands that share one now, and an app
   runs it in its tests in each state where its enabled commands differ.
 - Command palette with fuzzy matching and recent commands; shortcut sheet; open-surface
-  tracking with the package's surfaces plus the app's.
+  tracking with the package's surfaces plus the app's. `SurfaceHost` shows the instance's open
+  surface; the app mounts it once under `UiRoot`, outside every region. The package's commands
+  keep the apps' ids, so recent commands carry over: `edit.commandPalette`
+  (`COMMAND_PALETTE_COMMAND`, Ctrl+K in `global` and `text`) names no menu, and an app places it
+  with a planned command of that id; `edit.shortcuts` (`SHORTCUT_SHEET_COMMAND`, `?` in
+  `canvas`) places itself in Help.
 
 ### 7.2 Keys
 
@@ -300,8 +305,8 @@ closing-popover hook, as the sprite editor at the cut.
 
 ## 11. About and licences
 
-- **Help menu:** Keyboard Shortcuts… (`?`) first; About <productName>… last, in a group of its
-  own; app commands placed in Help go between them.
+- **Help menu:** Keyboard Shortcuts… (`?`) first, at menu order 0; About <productName>… last,
+  in a group of its own; app commands placed in Help go between them, at orders above 0.
 - **About dialog:** as DESIGN §7, from the `about` config. `about/build` exports
   `appInfoDefines(packageJsonPath)`, which reads the app's `package.json` (name, version,
   licence, the pinned `@ngne/core`) into the build-time constants `APP_PACKAGE`,
