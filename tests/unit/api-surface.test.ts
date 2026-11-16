@@ -362,9 +362,16 @@ function specSubpaths(): string[] {
     return [...section.matchAll(/^\| `(@ngne\/editor-ui[^`]*)` \|/gm)].map((match) => match[1]!);
 }
 
-/** The names a declaration file exports, values and types, sorted by code unit. */
-function exportedNames(file: string): string[] {
-    const program = ts.createProgram([file], { strict: true, skipLibCheck: true, noEmit: true });
+/**
+ * One program over every subpath's declaration file: the declarations they share (the peers'
+ * types, the package's own modules) are read once, not once per subpath.
+ */
+function declarationProgram(files: readonly string[]): ts.Program {
+    return ts.createProgram(files, { strict: true, skipLibCheck: true, noEmit: true });
+}
+
+/** The names a declaration file of `program` exports, values and types, sorted by code unit. */
+function exportedNames(program: ts.Program, file: string): string[] {
     const checker = program.getTypeChecker();
     const source = program.getSourceFile(file)!;
     const symbol = checker.getSymbolAtLocation(source);
@@ -395,9 +402,16 @@ describe("API surface", () => {
     });
 
     it("exports exactly the listed names from each subpath", () => {
-        for (const key of keys) {
+        const typesOf = (key: string) => {
             const target = manifest.exports[key]!;
-            const names = typeof target === "string" ? [] : exportedNames(join(ROOT, target.types));
+            return typeof target === "string" ? null : join(ROOT, target.types);
+        };
+        const program = declarationProgram(
+            keys.map(typesOf).filter((file): file is string => file !== null),
+        );
+        for (const key of keys) {
+            const file = typesOf(key);
+            const names = file === null ? [] : exportedNames(program, file);
             expect(names, subpathOf(key)).toEqual([...API[subpathOf(key)]!].sort(byCodeUnit));
         }
     }, 60_000);
