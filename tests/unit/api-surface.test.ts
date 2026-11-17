@@ -335,8 +335,8 @@ const API: Record<string, readonly string[]> = {
     ],
     "@ngne/editor-ui/pwa": [],
     "@ngne/editor-ui/pwa/worker": [],
-    "@ngne/editor-ui/about": [],
-    "@ngne/editor-ui/about/build": [],
+    "@ngne/editor-ui/about": ["ABOUT_COMMAND", "AboutDialog", "AppInfo"],
+    "@ngne/editor-ui/about/build": ["appInfoDefines"],
     "@ngne/editor-ui/licences": [],
     "@ngne/editor-ui/licences/build": [
         "ALLOWED_LICENCES",

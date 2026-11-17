@@ -1,6 +1,7 @@
 /// <reference types="vite/client" />
 import { createEditorUi } from "@ngne/editor-ui";
 import type { EditorUiModules } from "@ngne/editor-ui";
+import { appInfo } from "./appInfo.ts";
 import { DEMO_CONTEXTS, PANEL_SELECTOR } from "./keys.ts";
 import type { DemoContext } from "./keys.ts";
 import { PreferencesDialog } from "./PreferencesDialog.tsx";
@@ -17,7 +18,8 @@ import type { DemoTool } from "./tools.ts";
 // Its bottom region (SPEC §5 `bottomRegion`): the Timeline, toggled by Tab as `view.timeline`.
 // The page opened with `?bottom=none` builds the instance without one, the configuration of an
 // editor that has no bottom region. Its tools (`*.tools.ts`) with the height their rail footer
-// takes (SPEC §5 `railFooterHeight`), and its context-bar content (`*.contextbar.tsx`).
+// takes (SPEC §5 `railFooterHeight`), and its context-bar content (`*.contextbar.tsx`). Its
+// build facts are a fixture (`appInfo.ts`), which Help → About NGNE Demo Editor… shows.
 
 /** The bottom region, or none when the page's address asks for none. */
 const BOTTOM_REGION =
@@ -35,14 +37,7 @@ type ModuleOf<Name extends keyof Modules> = Modules[Name][string];
 export const editorUi = createEditorUi({
     id: "ngne-demo-editor",
     productName: "NGNE Demo Editor",
-    about: {
-        packageName: "ngne-demo-editor",
-        version: "0.0.0",
-        licence: "MIT",
-        engine: { packageName: "@ngne/core", version: "0.0.0" },
-        repositoryUrl: "https://github.com/that-webdev-dude/ngne-editor-ui",
-        changelogUrl: "https://github.com/that-webdev-dude/ngne-editor-ui/blob/main/CHANGELOG.md",
-    },
+    about: appInfo,
     menus: MENUS,
     keyContexts: {
         order: DEMO_CONTEXTS,

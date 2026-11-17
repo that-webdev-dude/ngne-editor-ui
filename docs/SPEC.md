@@ -336,9 +336,11 @@ closing-popover hook, as the sprite editor at the cut.
 
 - **Help menu:** Keyboard Shortcuts… (`?`) first, at menu order 0; About <productName>… last,
   in a group of its own; app commands placed in Help go between them, at orders above 0.
-- **About dialog:** as DESIGN §7, from the `about` config. `about/build` exports
-  `appInfoDefines(packageJsonPath)`, which reads the app's `package.json` (name, version,
-  licence, the pinned `@ngne/core`) into the build-time constants `APP_PACKAGE`,
+- **About dialog:** as DESIGN §7, from the `about` config and `productName`; the instance's
+  `about` surface (§7.1), which `SurfaceHost` shows, so an app's surface takes another id. The
+  About command keeps the sprite editor's id `help.about` (`ABOUT_COMMAND`). `about/build`
+  exports `appInfoDefines(packageJsonPath)`, which reads the app's `package.json` (name,
+  version, licence, the pinned `@ngne/core`) into the build-time constants `APP_PACKAGE`,
   `APP_VERSION`, `APP_LICENSE`, `ENGINE_PACKAGE`, `ENGINE_VERSION` for the app's
   `vite.config.ts`, so a release that bumps `package.json` changes the dialog with no other
   edit.

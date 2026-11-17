@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { ReactNode } from "react";
 import type { CommandModule } from "../../../model/commands/types.js";
+import { ABOUT_COMMAND } from "../../about/about.commands.js";
 import { CommandPaletteTrigger } from "../../commands/CommandPaletteTrigger.js";
 import { SHORTCUT_SHEET_COMMAND } from "../../commands/shortcutSheet.commands.js";
 import { runCommand } from "../../commands/runCommand.js";
@@ -8,13 +9,14 @@ import { SurfaceHost } from "../../commands/SurfaceHost.js";
 import { EditorUiContext, useEditorUi } from "../../editorUi/context.js";
 import { createEditorUi } from "../../editorUi/createEditorUi.js";
 import type { AnyEditorUi } from "../../editorUi/createEditorUi.js";
+import type { AppInfo } from "../../editorUi/config.js";
 import { Button } from "../../primitives/index.js";
 import type { GalleryEntry } from "../entry.js";
 
-// The command palette and shortcut sheet entries of the gallery (SPEC §7.1, DESIGN §4, §7):
-// each over an editor UI instance of its own, built from a fixture configuration with commands
-// in a menu bar, with and without keys, one disabled and some outside the menus, and shown by
-// its own surface host. The instance is provided to the entry without `UiRoot`, which would
+// The command palette, shortcut sheet and About entries of the gallery (SPEC §7.1, §11,
+// DESIGN §4, §7): each over an editor UI instance of its own, built from a fixture
+// configuration with commands in a menu bar, with and without keys, one disabled and some
+// outside the menus, and fixture build facts, and shown by its own surface host. The instance is provided to the entry without `UiRoot`, which would
 // take the document's theme from the gallery's switch; so the keys do not open the surfaces
 // here, their buttons do.
 
@@ -22,6 +24,17 @@ const MENUS = ["File", "Edit", "View", "Help"] as const;
 type Menu = (typeof MENUS)[number];
 
 const done = () => {};
+
+const REPOSITORY_URL = "https://github.com/that-webdev-dude/ngne-editor-ui";
+
+/** The fixture build facts the About entry shows (SPEC §5 `about`). */
+const FIXTURE_ABOUT: Omit<AppInfo, "packageName"> = {
+    version: "2.7.1",
+    licence: "MIT",
+    engine: { packageName: "@ngne/core", version: "0.8.5" },
+    repositoryUrl: REPOSITORY_URL,
+    changelogUrl: `${REPOSITORY_URL}/blob/main/CHANGELOG.md`,
+};
 
 const FIXTURE_COMMANDS: Readonly<Record<string, CommandModule<Menu, never>>> = {
     "./gallery/surfaces.commands.ts": {
@@ -88,15 +101,7 @@ function fixtureInstance(id: string): AnyEditorUi {
     return createEditorUi<Menu>({
         id,
         productName: "NGNE Gallery Editor",
-        about: {
-            packageName: id,
-            version: "0.0.0",
-            licence: "MIT",
-            engine: { packageName: "@ngne/core", version: "0.0.0" },
-            repositoryUrl: "https://github.com/that-webdev-dude/ngne-editor-ui",
-            changelogUrl:
-                "https://github.com/that-webdev-dude/ngne-editor-ui/blob/main/CHANGELOG.md",
-        },
+        about: { packageName: id, ...FIXTURE_ABOUT },
         menus: MENUS,
         modules: { commands: FIXTURE_COMMANDS },
     });
@@ -138,7 +143,22 @@ function ShortcutSheetEntry() {
     );
 }
 
+function AboutButton() {
+    const editorUi = useEditorUi();
+    const { title } = editorUi.commands.get(ABOUT_COMMAND)!;
+    return <Button onClick={() => runCommand(editorUi.commands, ABOUT_COMMAND)}>{title()}</Button>;
+}
+
+function AboutEntry() {
+    return (
+        <WithInstance id="ngne-gallery-about">
+            <AboutButton />
+        </WithInstance>
+    );
+}
+
 export const surfaceEntries: readonly GalleryEntry[] = [
     { id: "command-palette", title: "Command palette", Component: CommandPaletteEntry },
     { id: "shortcut-sheet", title: "Shortcut sheet", Component: ShortcutSheetEntry },
+    { id: "about", title: "About dialog", Component: AboutEntry },
 ];
