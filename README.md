@@ -56,8 +56,12 @@ import { UiRoot } from "@ngne/editor-ui";
 import { AppShell } from "@ngne/editor-ui/shell";
 
 root.render(
-    <UiRoot ui={editorUi}>
-        <AppShell viewport={<Viewport />} noDocument={<EmptyState />} />
+    <UiRoot editorUi={editorUi}>
+        <AppShell
+            viewport={<Viewport />}
+            noDocument={<EmptyState />}
+            tools={toolState} // the editor's active-tool store: the rail and context bar read it
+        />
     </UiRoot>,
 );
 ```
