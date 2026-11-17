@@ -294,9 +294,13 @@ only the stored field keeps its old name.
   `{ text, kind }`: `feedback` (transient tool feedback) in `--warn`, `hint` in the bar's
   colour. Without `status` the fields read `undefined` and no hint is shown.
 - **Tab strip (BRIEF D18):** presentational. The app passes items (`id`, `label`, `tooltip`,
-  `dirty`), the active id, a leading label (project name) and callbacks (`activate`, `close`,
-  `move`); the strip owns metrics, keyboard (arrows, Home, End, Delete), drag to reorder and
-  the overflow menu, whose label the app passes.
+  `dirty`), the active id, a leading label (project name, with its unsaved marker, as the
+  tilemap editor shows it) and callbacks (`activate`, `close`, `move`); the strip owns metrics,
+  keyboard (arrows, Home, End, Delete), drag to reorder and the overflow menu, whose label the
+  app passes, as it passes the tab list's accessible name. `move(id, index)` receives the
+  tab's place once moved. `close` may return a promise, for an editor that asks first; after
+  Delete the focus goes to the tab now in the closed one's place, or the one before it, or
+  with none left to the viewport target (`data-viewport-focus`).
 - **Tools (BRIEF D18):** `ToolBase` holds what the rail and context bar need: id, title
   (`label`), icon, key (`shortcut`, and a `hold` key), group (`railOrder`, whose hundreds are
   the rail's groups), variant-of (`variantOf`), option specs (`options`). Apps extend it with

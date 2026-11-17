@@ -3,7 +3,7 @@
 // package commands of the shell; the dock-panel, context-bar and status-field registries
 // (SPEC §1.3) and what the status bar reads; the tool base and the tool registry, generic over
 // the editor's tool type (BRIEF D18), the option values and what the tool rail and the context
-// bar read of the editor's active-tool store.
+// bar read of the editor's active-tool store; the presentational tab strip (BRIEF D18).
 
 export { RegistrationError } from "../../model/modules.js";
 export { collectContextBarContent } from "../../model/registries/contextBar.js";
@@ -72,6 +72,8 @@ export {
 export type { ShellRegion } from "./regions.js";
 export { NEXT_REGION_COMMAND, PREVIOUS_REGION_COMMAND } from "./regions.commands.js";
 export type { StatusBarSource, StatusHint } from "./StatusBar.js";
+export { TabStrip } from "./TabStrip.js";
+export type { TabStripItem, TabStripLeading, TabStripProps } from "./TabStrip.js";
 export type { RailFilter } from "./ToolRail.js";
 export { useToolState } from "./useToolState.js";
 export type { ToolStateSource } from "./useToolState.js";

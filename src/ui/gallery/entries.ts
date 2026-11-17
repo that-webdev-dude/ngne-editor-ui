@@ -2,6 +2,7 @@ import { commandEntries } from "./entries/CommandsEntries.js";
 import { messageEntries } from "./entries/MessagesEntries.js";
 import { primitiveEntries } from "./entries/PrimitivesEntries.js";
 import { surfaceEntries } from "./entries/SurfacesEntries.js";
+import { tabStripEntry } from "./entries/TabStripEntry.js";
 import { tokensEntry } from "./entries/TokensEntry.js";
 import type { GalleryEntry } from "./entry.js";
 
@@ -15,6 +16,7 @@ export const GALLERY_ENTRIES: readonly GalleryEntry[] = [
     ...messageEntries, // DESIGN §5, §7, SPEC §6
     ...commandEntries, // SPEC §2 Command refresh, §7.1
     ...surfaceEntries, // DESIGN §4 Command palette, §7 Shortcut sheet, SPEC §7.1
+    tabStripEntry, // DESIGN §2 Tab strip, SPEC §8
 ];
 
 /** The dialogs the entries ask for, shown by the frame's dialog host. */
