@@ -13,8 +13,12 @@ import { RegionBoundary } from "../messages/RegionBoundary.js";
 import { WindowTooSmall } from "../messages/WindowTooSmall.js";
 import { useWindowHeight, useWindowWidth } from "../platform/useWindowSize.js";
 import { Splitter } from "../primitives/Splitter.js";
+import { Dock } from "./Dock.js";
+import { MenuBar } from "./MenuBar.js";
+import { StatusBar } from "./StatusBar.js";
+import type { StatusBarSource } from "./StatusBar.js";
 
-export interface AppShellProps {
+export interface AppShellProps<StatusInput = unknown> {
     /** The menu bar's centre: the tab strip, or nothing. */
     menuCentre?: ReactNode;
     /** Content under the tool rail's groups, in the height `railFooterHeight` reserves. */
@@ -29,6 +33,11 @@ export interface AppShellProps {
      * region stay empty.
      */
     noDocument?: ReactNode;
+    /**
+     * What the status bar's fields read and its hint (SPEC §8): the same object across renders.
+     * Without it the fields read `undefined` and there is no hint.
+     */
+    status?: StatusBarSource<StatusInput>;
 }
 
 /** Whether the window is below the minimum the layout holds at (1280×720); renders on resize. */
@@ -42,16 +51,19 @@ export function useWindowTooSmall(): boolean {
  * splitters with the sizes kept in the instance's layout store, and the window-too-small notice
  * below 1280×720, while the frame stays mounted, so a resize loses no state. The tool rail runs
  * full height beside the bottom region, which spans the viewport and dock columns (BRIEF D22).
- * The editor fills the slots; region contents, the viewport's included, stay the editor's.
- * Rendered under `UiRoot`, whose instance it reads.
+ * The menu bar, the dock and the status bar draw what the instance's registries hold: the menus
+ * from the command registry with the palette trigger, the `*.dock.tsx` sections, the
+ * `*.status.ts` fields and the hint. The editor fills the slots; region contents, the
+ * viewport's included, stay the editor's. Rendered under `UiRoot`, whose instance it reads.
  */
-export function AppShell({
+export function AppShell<StatusInput = unknown>({
     menuCentre,
     railFooter,
     viewport,
     bottom,
     noDocument,
-}: Readonly<AppShellProps>) {
+    status,
+}: Readonly<AppShellProps<StatusInput>>) {
     const editorUi = useEditorUi();
     const { bottomRegion, railFooterHeight } = editorUi.config;
     const windowWidth = useWindowWidth();
@@ -82,7 +94,7 @@ export function AppShell({
             >
                 <header className="shell-menubar" data-region="menu-bar">
                     <RegionBoundary name="Menu bar">
-                        <div className="shell-menubar__centre">{menuCentre}</div>
+                        <MenuBar centre={menuCentre} />
                     </RegionBoundary>
                 </header>
                 <nav className="shell-rail" data-region="tool-rail" aria-label="Tools">
@@ -120,7 +132,9 @@ export function AppShell({
                     />
                     <div className="shell-dock__scroll">
                         {noDocumentOpen ? null : (
-                            <RegionBoundary name="Panels">{null}</RegionBoundary>
+                            <RegionBoundary name="Panels">
+                                <Dock />
+                            </RegionBoundary>
                         )}
                     </div>
                 </aside>
@@ -150,7 +164,9 @@ export function AppShell({
                     </section>
                 )}
                 <footer className="shell-status" data-region="status-bar">
-                    <RegionBoundary name="Status bar">{null}</RegionBoundary>
+                    <RegionBoundary name="Status bar">
+                        <StatusBar source={status as StatusBarSource | undefined} />
+                    </RegionBoundary>
                 </footer>
             </div>
             {tooSmall ? <WindowTooSmall width={windowWidth} height={windowHeight} /> : null}

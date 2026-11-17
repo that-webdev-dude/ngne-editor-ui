@@ -1,9 +1,14 @@
 // Entry module of `@ngne/editor-ui/shell` (SPEC §4, §8): the `AppShell` frame with its slots,
 // the layout maths and the instance's layout and bottom-region stores, the F6 regions and the
-// package commands of the shell; the tool base and the tool registry, generic over the editor's
+// package commands of the shell; the dock-panel and status-field registries (SPEC §1.3) and
+// what the status bar reads; the tool base and the tool registry, generic over the editor's
 // tool type (BRIEF D18).
 
 export { RegistrationError } from "../../model/modules.js";
+export { collapsedByDefault, collectDockPanels } from "../../model/registries/dock.js";
+export type { DockPanel, DockPanelModule } from "../../model/registries/dock.js";
+export { collectStatusFields } from "../../model/registries/statusFields.js";
+export type { StatusField, StatusFieldModule } from "../../model/registries/statusFields.js";
 export {
     BOTTOM_HEIGHT,
     bottomMaxHeight,
@@ -58,3 +63,4 @@ export {
 } from "./regions.js";
 export type { ShellRegion } from "./regions.js";
 export { NEXT_REGION_COMMAND, PREVIOUS_REGION_COMMAND } from "./regions.commands.js";
+export type { StatusBarSource, StatusHint } from "./StatusBar.js";

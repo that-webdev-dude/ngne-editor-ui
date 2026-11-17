@@ -8,14 +8,16 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { useStore } from "zustand";
 import { DemoBottom } from "./DemoBottom.tsx";
+import { DemoMenuCentre } from "./DemoMenuCentre.tsx";
 import { DemoNoDocument } from "./DemoNoDocument.tsx";
 import { DemoViewport } from "./DemoViewport.tsx";
 import { documentStore } from "./document.ts";
 import { editorUi } from "./editorUi.ts";
+import { demoStatus } from "./status.ts";
 
 // The demo editor's page: its instance passed to `UiRoot` at the root, as an editor mounts it
-// (SPEC §1.2, §8), the shell with the demo's slot contents, and the surface host beside the
-// shell, outside every region (SPEC §7.1). The keyboard runs no command while the shell's
+// (SPEC §1.2, §8), the shell with the demo's slot contents and what its status bar reads, and
+// the surface host beside the shell, outside every region (SPEC §7.1). The keyboard runs no command while the shell's
 // window-too-small notice stands in for the editor (SPEC §7.2).
 
 const root = document.getElementById("root");
@@ -27,9 +29,11 @@ function DemoPage() {
     return (
         <UiRoot editorUi={editorUi} keymap={!tooSmall}>
             <AppShell
+                menuCentre={<DemoMenuCentre />}
                 viewport={<DemoViewport />}
                 bottom={<DemoBottom />}
                 noDocument={open ? null : <DemoNoDocument />}
+                status={demoStatus}
             />
             <SurfaceHost />
         </UiRoot>
