@@ -15,7 +15,7 @@ export const GALLERY_ENTRIES: readonly GalleryEntry[] = [
     ...primitiveEntries, // DESIGN §4, SPEC §9.1
     ...messageEntries, // DESIGN §5, §7, SPEC §6
     ...commandEntries, // SPEC §2 Command refresh, §7.1
-    ...surfaceEntries, // DESIGN §4 Command palette, §7 Shortcut sheet, SPEC §7.1
+    ...surfaceEntries, // DESIGN §4 Command palette, §7 Shortcut sheet and About, SPEC §7.1, §11
     tabStripEntry, // DESIGN §2 Tab strip, SPEC §8
 ];
 

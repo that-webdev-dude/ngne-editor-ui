@@ -63,8 +63,9 @@ test("the menus follow the configuration's order, each generated from the regist
         File: ["New DocumentCtrl+Alt+N", "—", "Close Document"],
         Edit: ["UndoCtrl+Z", "—", "Command Palette…Ctrl+K", "Preferences…"],
         View: ["Zoom InCtrl+=", "Fit to Window"],
-        // Keyboard Shortcuts… first; an editor's items after it, in a group of their own.
-        Help: ["Keyboard Shortcuts…?", "—", "Release Notes"],
+        // Keyboard Shortcuts… first; an editor's items after it, in a group of their own;
+        // About last, in a group of its own (SPEC §11).
+        Help: ["Keyboard Shortcuts…?", "—", "Release Notes", "—", "About NGNE Demo Editor…"],
     };
     for (const [menu, items] of Object.entries(expected)) {
         await openByPointer(page, menu);

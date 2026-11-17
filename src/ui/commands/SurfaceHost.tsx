@@ -1,6 +1,7 @@
 import { Component, useEffect } from "react";
 import type { ComponentType, ReactNode } from "react";
 import { useStore } from "zustand";
+import { AboutDialog } from "../about/AboutDialog.js";
 import { useEditorUi } from "../editorUi/context.js";
 import type { Surfaces } from "../editorUi/surfaces.js";
 import { focusMenuOpener } from "../focus/menuOpener.js";
@@ -9,13 +10,14 @@ import { CommandPalette } from "./CommandPalette.js";
 import { ShortcutSheet } from "./ShortcutSheet.js";
 
 // The surfaces host (SPEC §7.1): shows the surface of the editor UI instance that a command
-// has opened — the package's command palette and shortcut sheet, or one of the editor's own
-// (`config.surfaces`, SPEC §5), such as its Preferences dialog.
+// has opened — the package's command palette, shortcut sheet and About dialog (SPEC §11), or
+// one of the editor's own (`config.surfaces`, SPEC §5), such as its Preferences dialog.
 
 /** The package's surfaces with the names their failure toasts give them. */
 const PACKAGE_SURFACES: Readonly<Record<string, { name: string; Surface: ComponentType }>> = {
     "command-palette": { name: "Command palette", Surface: CommandPalette },
     "shortcut-sheet": { name: "Keyboard shortcuts", Surface: ShortcutSheet },
+    about: { name: "About", Surface: AboutDialog },
 };
 
 interface SurfaceBoundaryProps {

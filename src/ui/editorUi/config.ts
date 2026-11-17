@@ -139,8 +139,11 @@ export interface ResolvedEditorUiConfig<
     readonly surfaces: Readonly<Record<string, ComponentType>>;
 }
 
-/** The surfaces the package opens itself (SPEC §7.1); an editor's surface takes another id. */
-export const PACKAGE_SURFACES = ["command-palette", "shortcut-sheet"] as const;
+/**
+ * The surfaces the package opens itself (SPEC §7.1, §11): the command palette, the shortcut
+ * sheet and the About dialog; an editor's surface takes another id.
+ */
+export const PACKAGE_SURFACES = ["command-palette", "shortcut-sheet", "about"] as const;
 
 /** A persisted-name prefix (DESIGN §10): lowercase words joined by hyphens. */
 const ID_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;

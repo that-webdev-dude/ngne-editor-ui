@@ -71,8 +71,32 @@ package's worker:
 
 ```ts
 // vite.config.ts
+import { fileURLToPath } from "node:url";
 import { appInfoDefines } from "@ngne/editor-ui/about/build";
 import { generateLicences } from "@ngne/editor-ui/licences/build";
+
+export default defineConfig({
+    // APP_PACKAGE, APP_VERSION, APP_LICENSE, ENGINE_PACKAGE, ENGINE_VERSION from package.json
+    // (its name, version, licence and the pinned @ngne/core), under import.meta.env.
+    define: appInfoDefines(fileURLToPath(new URL("package.json", import.meta.url))),
+    // plugins: [react(), generateLicences({ … }).plugin, …]
+});
+
+// src/app/about/appInfo.ts: the About dialog's facts (Help → About <productName>…)
+import type { AppInfo } from "@ngne/editor-ui/about";
+
+const REPOSITORY_URL = "https://github.com/that-webdev-dude/ngne-sprite-editor";
+export const appInfo: AppInfo = {
+    packageName: import.meta.env.APP_PACKAGE,
+    version: import.meta.env.APP_VERSION,
+    licence: import.meta.env.APP_LICENSE,
+    engine: {
+        packageName: import.meta.env.ENGINE_PACKAGE,
+        version: import.meta.env.ENGINE_VERSION,
+    },
+    repositoryUrl: REPOSITORY_URL,
+    changelogUrl: `${REPOSITORY_URL}/blob/main/CHANGELOG.md`,
+};
 
 // src/app/pwa/sw.ts
 import { installServiceWorker } from "@ngne/editor-ui/pwa/worker";

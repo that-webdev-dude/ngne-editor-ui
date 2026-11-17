@@ -10,6 +10,7 @@
         // their sources, so the check needs no build first (tests/unit/gallery-imports).
         "paths": {
             "@ngne/editor-ui": ["./src/ui/index.ts"],
+            "@ngne/editor-ui/about": ["./src/ui/about/index.ts"],
             "@ngne/editor-ui/commands": ["./src/ui/commands/index.ts"],
             "@ngne/editor-ui/gallery": ["./src/ui/gallery/index.ts"],
             "@ngne/editor-ui/licences/build": ["./src/build/licences/index.ts"],

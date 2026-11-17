@@ -82,9 +82,9 @@ describe("createEditorUi defaults (SPEC §5)", () => {
         off();
     });
 
-    it("surfaces: the command palette and the shortcut sheet only", () => {
+    it("surfaces: the command palette, the shortcut sheet and the About dialog only", () => {
         expect(config.surfaces).toEqual({});
-        expect(editorUi.surfaces.ids).toEqual(["command-palette", "shortcut-sheet"]);
+        expect(editorUi.surfaces.ids).toEqual(["command-palette", "shortcut-sheet", "about"]);
         expect(editorUi.surfaces.store.getState().open).toBeNull();
     });
 });
@@ -122,7 +122,7 @@ describe("createEditorUi with every field given", () => {
 
     it("tracks the editor's surfaces after the package's, one open at a time", () => {
         const { surfaces } = editorUi;
-        expect(surfaces.ids).toEqual(["command-palette", "shortcut-sheet", "preferences"]);
+        expect(surfaces.ids).toEqual(["command-palette", "shortcut-sheet", "about", "preferences"]);
         surfaces.open("preferences");
         surfaces.open("command-palette");
         expect(surfaces.store.getState().open).toBe("command-palette");
@@ -130,7 +130,7 @@ describe("createEditorUi with every field given", () => {
         expect(surfaces.store.getState().open).toBe("command-palette");
         surfaces.close();
         expect(surfaces.store.getState().open).toBeNull();
-        expect(() => surfaces.open("about")).toThrow(/"about"/);
+        expect(() => surfaces.open("release-notes")).toThrow(/"release-notes"/);
     });
 });
 

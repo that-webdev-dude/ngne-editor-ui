@@ -1,6 +1,7 @@
 import { createStore } from "zustand/vanilla";
 import { describe, expect, it, vi } from "vitest";
 import { RegistrationError } from "../../src/model/modules.ts";
+import { ABOUT_COMMAND } from "../../src/ui/about/index.ts";
 import {
     buildMenu,
     COMMAND_PALETTE_COMMAND,
@@ -133,7 +134,13 @@ describe("package commands", () => {
     it("are the package's own list in createEditorUi, each module under the package's prefix", () => {
         const editorUi = createEditorUi(BASE);
         const packageIds = Object.values(PACKAGE_COMMAND_MODULES)
-            .map((module) => module({ surfaces: editorUi.surfaces, bottomRegion: null }))
+            .map((module) =>
+                module({
+                    productName: BASE.productName,
+                    surfaces: editorUi.surfaces,
+                    bottomRegion: null,
+                }),
+            )
             .flatMap((module) => [...(module.commands ?? []), ...(module.plannedCommands ?? [])])
             .map((spec) => spec.id)
             .sort();
@@ -330,7 +337,7 @@ describe("the command palette and shortcut sheet commands (SPEC §7.1, §11)", (
     it("Keyboard Shortcuts… is the first item of Help, ahead of the editor's items there", () => {
         const help = (module: CommandModule<Menu>) =>
             outline(buildMenu(editor(module).commands.list(), ["Help"]));
-        expect(help({ commands: [] })).toEqual([SHORTCUT_SHEET_COMMAND]);
+        expect(help({ commands: [] })).toEqual([SHORTCUT_SHEET_COMMAND, "---", ABOUT_COMMAND]);
         expect(
             help({
                 commands: [
@@ -339,7 +346,16 @@ describe("the command palette and shortcut sheet commands (SPEC §7.1, §11)", (
                     { id: "help.site", title: "Site", menuPath: ["Help"], menuOrder: 100, run },
                 ],
             }),
-        ).toEqual([SHORTCUT_SHEET_COMMAND, "help.tips", "---", "help.site", "---", "help.guide"]);
+        ).toEqual([
+            SHORTCUT_SHEET_COMMAND,
+            "help.tips",
+            "---",
+            "help.site",
+            "---",
+            "help.guide",
+            "---",
+            ABOUT_COMMAND,
+        ]);
         // An editor's plan for the sheet's id does not move it: the command names its place.
         expect(
             help({
@@ -355,7 +371,7 @@ describe("the command palette and shortcut sheet commands (SPEC §7.1, §11)", (
                     { id: "help.tips", title: "Tips", menuPath: ["Help"], menuOrder: 50, run },
                 ],
             }),
-        ).toEqual([SHORTCUT_SHEET_COMMAND, "help.tips"]);
+        ).toEqual([SHORTCUT_SHEET_COMMAND, "help.tips", "---", ABOUT_COMMAND]);
     });
 
     it("the palette takes the menu item an editor plans for its id", () => {
@@ -399,7 +415,12 @@ describe("the command palette and shortcut sheet commands (SPEC §7.1, §11)", (
     it("an editor's surface is tracked with the package's: one open at a time", async () => {
         const Preferences = () => null;
         const editorUi = editor(undefined, { surfaces: { preferences: Preferences } });
-        expect(editorUi.surfaces.ids).toEqual(["command-palette", "shortcut-sheet", "preferences"]);
+        expect(editorUi.surfaces.ids).toEqual([
+            "command-palette",
+            "shortcut-sheet",
+            "about",
+            "preferences",
+        ]);
         editorUi.surfaces.open("preferences");
         await editorUi.commands.get(COMMAND_PALETTE_COMMAND)!.run();
         expect(editorUi.surfaces.store.getState().open).toBe("command-palette");

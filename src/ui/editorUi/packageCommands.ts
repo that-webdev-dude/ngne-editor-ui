@@ -1,6 +1,7 @@
 import type { StoreApi } from "zustand/vanilla";
 import type { CommandModule } from "../../model/commands/types.js";
 import type { ModuleMap } from "../../model/modules.js";
+import { aboutCommands } from "../about/about.commands.js";
 import { commandPaletteCommands } from "../commands/commandPalette.commands.js";
 import { shortcutSheetCommands } from "../commands/shortcutSheet.commands.js";
 import { bottomRegionCommands } from "../shell/bottomRegion.commands.js";
@@ -24,7 +25,9 @@ export type PackageMenu = "View" | "Help";
 
 /** What a package command reaches of the editor UI instance it is registered in. */
 export interface PackageCommandScope {
-    /** The instance's surfaces, which the palette and sheet commands open. */
+    /** The editor's product name, which titles the About command (SPEC §5 `productName`). */
+    readonly productName: string;
+    /** The instance's surfaces, which the palette, sheet and About commands open. */
     readonly surfaces: Surfaces;
     /**
      * The editor's bottom region and the instance whose visibility store its toggle switches;
@@ -42,6 +45,7 @@ export type PackageCommandModule = (
 ) => CommandModule<PackageMenu, never>;
 
 export const PACKAGE_COMMAND_MODULES: ModuleMap<PackageCommandModule> = {
+    [`${PACKAGE_COMMAND_SOURCE}about/about.commands.ts`]: aboutCommands,
     [`${PACKAGE_COMMAND_SOURCE}commands/commandPalette.commands.ts`]: commandPaletteCommands,
     [`${PACKAGE_COMMAND_SOURCE}commands/shortcutSheet.commands.ts`]: shortcutSheetCommands,
     [`${PACKAGE_COMMAND_SOURCE}shell/bottomRegion.commands.ts`]: bottomRegionCommands,

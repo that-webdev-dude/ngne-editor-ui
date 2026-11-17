@@ -134,6 +134,7 @@ export function buildEditorUi<
     registerCommandModules(
         commands,
         packageModulesFor(parts.commandModules, {
+            productName: resolved.productName,
             surfaces,
             bottomRegion: resolved.bottomRegion && {
                 region: resolved.bottomRegion,
