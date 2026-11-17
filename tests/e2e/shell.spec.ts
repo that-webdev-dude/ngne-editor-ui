@@ -401,10 +401,13 @@ async function lap(page: Page, key: "F6" | "Shift+F6", count: number) {
 
 test("F6 and Shift+F6 cycle the regions that can take focus, in shell order", async ({ page }) => {
     await openShell(page);
-    // The rail and the context bar hold nothing to focus yet. The menu bar's first menu, the
-    // dock's first section header and the status bar's Fit to Window take the focus.
+    // The menu bar's first menu, the rail's first enabled tool, the context bar's first option
+    // (the pencil's Size field, named by its label), the dock's first section header and the
+    // status bar's Fit to Window take the focus.
     const cycle = [
         "menu-bar: File",
+        "tool-rail: Pencil",
+        "context-bar: ",
         "viewport: Preferences…",
         "dock: History",
         `${BOTTOM}: Frame 1`,
@@ -412,9 +415,9 @@ test("F6 and Shift+F6 cycle the regions that can take focus, in shell order", as
     ];
     await canvas(page).focus();
     expect(await lap(page, "F6", 6)).toEqual([
-        cycle[2],
-        cycle[3],
         cycle[4],
+        cycle[5],
+        cycle[6],
         cycle[0],
         cycle[1],
         cycle[2],
@@ -422,23 +425,23 @@ test("F6 and Shift+F6 cycle the regions that can take focus, in shell order", as
     expect(await lap(page, "Shift+F6", 5)).toEqual([
         cycle[1],
         cycle[0],
+        cycle[6],
+        cycle[5],
         cycle[4],
-        cycle[3],
-        cycle[2],
     ]);
 
     // Also from a text field.
     const name = page.getByRole("textbox", { name: "Name" });
     await name.focus();
-    expect(await lap(page, "F6", 1)).toEqual([cycle[2]]);
+    expect(await lap(page, "F6", 1)).toEqual([cycle[4]]);
     await name.focus();
-    expect(await lap(page, "Shift+F6", 1)).toEqual([cycle[0]]);
+    expect(await lap(page, "Shift+F6", 1)).toEqual([cycle[2]]);
 
     // A hidden region is left out.
     await canvas(page).focus();
     await page.keyboard.press("Tab");
     await expect(region(page, BOTTOM)).toBeHidden();
-    expect(await lap(page, "F6", 2)).toEqual([cycle[2], cycle[4]]);
+    expect(await lap(page, "F6", 2)).toEqual([cycle[4], cycle[6]]);
 
     // Under an overlay F6 does nothing.
     await openPalette(page);

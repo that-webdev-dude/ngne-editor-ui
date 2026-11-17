@@ -84,3 +84,24 @@
     color: var(--text-muted);
     font-variant-numeric: tabular-nums;
 }
+
+/* The tool slots (SPEC §8): the rail footer's colour chips, 28 × 28 px, and the controls of the
+   tool set and the floating selection. */
+.demo-chip {
+    width: var(--row-height);
+    height: var(--row-height);
+    border: var(--border-width) solid var(--border-strong);
+    border-radius: var(--radius-control);
+}
+
+.demo-chip--foreground {
+    background: var(--text);
+}
+
+.demo-chip--background {
+    background: var(--bg-workspace);
+}
+
+.demo__tool-controls {
+    margin: var(--space-16);
+}

@@ -5,6 +5,8 @@ import { DEMO_CONTEXTS, PANEL_SELECTOR } from "./keys.ts";
 import type { DemoContext } from "./keys.ts";
 import { PreferencesDialog } from "./PreferencesDialog.tsx";
 import { rowsStore } from "./rows.ts";
+import { RAIL_FOOTER_HEIGHT } from "./tools.ts";
+import type { DemoTool } from "./tools.ts";
 
 // The gallery's demo editor (SPEC §5): its editor UI instance, configured as an editor's
 // `src/app/editorUi.ts` is. Each registry's modules are found by one `import.meta.glob` line
@@ -14,7 +16,8 @@ import { rowsStore } from "./rows.ts";
 // Its own surface: a fixture Preferences dialog, beside the package's (SPEC §5 `surfaces`).
 // Its bottom region (SPEC §5 `bottomRegion`): the Timeline, toggled by Tab as `view.timeline`.
 // The page opened with `?bottom=none` builds the instance without one, the configuration of an
-// editor that has no bottom region.
+// editor that has no bottom region. Its tools (`*.tools.ts`) with the height their rail footer
+// takes (SPEC §5 `railFooterHeight`), and its context-bar content (`*.contextbar.tsx`).
 
 /** The bottom region, or none when the page's address asks for none. */
 const BOTTOM_REGION =
@@ -24,7 +27,7 @@ const BOTTOM_REGION =
 
 const MENUS = ["File", "Edit", "View", "Help"] as const;
 export type DemoMenu = (typeof MENUS)[number];
-type Modules = EditorUiModules<DemoMenu, DemoContext>;
+type Modules = EditorUiModules<DemoMenu, DemoContext, DemoTool>;
 
 /** One module of a registry's map. */
 type ModuleOf<Name extends keyof Modules> = Modules[Name][string];
@@ -47,6 +50,7 @@ export const editorUi = createEditorUi({
         focus: { panel: PANEL_SELECTOR },
     },
     bottomRegion: BOTTOM_REGION,
+    railFooterHeight: RAIL_FOOTER_HEIGHT,
     modules: {
         commands: import.meta.glob<ModuleOf<"commands">>("./**/*.commands.{ts,tsx}", {
             eager: true,

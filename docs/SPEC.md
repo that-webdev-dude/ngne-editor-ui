@@ -275,9 +275,16 @@ only the stored field keeps its old name.
   command.
 - **Tool rail:** columns from the tool registry's groups; one or two columns by height. An
   optional filter chooses the tools shown (the tilemap shows the tools of the active layer's
-  kind).
-- **Context bar:** the active tool's options from the registry, then an optional trailing
-  readouts slot (the tilemap's tool readouts).
+  kind): `AppShell`'s `railFilter`, over the rail's slots; a new function updates the rail and
+  its columns. The rail and the context bar read the editor's active-tool store, `AppShell`'s
+  `tools` (`ToolStateSource`: the active tool, the variant a slot shows, the option values,
+  selecting a tool and setting an option, `subscribe`), as the status bar reads `status`;
+  without it they show no tools. A tool chosen with the pointer sends the focus to
+  `toolFocus()`, the viewport target (§6) by default; from the keyboard the focus stays.
+- **Context bar:** the active tool's options from the registry, then the trigger of the overflow
+  menu that holds the options that do not fit (from the last back), then an optional trailing
+  readouts slot (`contextReadouts`, the tilemap's tool readouts), never in the overflow menu.
+  `*.contextbar.tsx` content, while shown, takes the place of the options and the readouts.
 - **Dock, menu bar:** from their registries; menus from the command registry.
 - **Status bar:** the frame renders the `*.status.ts` fields in registry order, left to right,
   then the hint on the right; a field declares its reserved width. What the fields read and the
