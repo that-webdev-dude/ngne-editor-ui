@@ -1,0 +1,48 @@
+/* The dock's sections (DESIGN §2): a 32 px header whose toggle stays clickable, then the body.
+   The dock region and its scroller are laid out by shell.css. */
+.dock-section {
+    flex: none;
+    border-bottom: var(--border-width) solid var(--border);
+}
+
+.dock-section__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-8);
+    height: 32px;
+    padding: 0 var(--space-12) 0 var(--space-4);
+    color: var(--text-muted);
+    font-size: var(--font-size-label);
+    font-weight: var(--font-weight-strong);
+}
+
+.dock-section__toggle {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    gap: var(--space-4);
+    min-width: 0;
+    height: var(--control-height);
+    padding: 0 var(--space-4);
+    border-radius: var(--radius-control);
+    font-weight: inherit;
+    text-align: left;
+    white-space: nowrap;
+    transition: color var(--motion-fast) var(--motion-ease);
+}
+
+.dock-section__toggle:hover {
+    color: var(--text);
+}
+
+.dock-section__extra {
+    display: flex;
+    flex: none;
+    align-items: center;
+    font-weight: var(--font-weight);
+}
+
+.dock-section__body {
+    padding: 0 var(--space-12) var(--space-12);
+}

@@ -22,7 +22,8 @@ import {
 // The shortcut sheet (DESIGN §7, SPEC §7.1) on the demo editor: `?` opens it in the canvas
 // context, and so does the palette's Keyboard Shortcuts… row; it is generated from the
 // instance's registry, grouped by the demo's menus in their order, "Other" last. Both themes
-// pass axe with the sheet open. Its Help menu item is reached through the menu bar's specs.
+// pass axe with the sheet open. Help → Keyboard Shortcuts…, the first item of Help, opens it
+// from the menu bar (DESIGN §8).
 
 interface SheetRow {
     group: string;
@@ -105,6 +106,38 @@ test("the palette's Keyboard Shortcuts… row opens the sheet", async ({ page })
     await page.keyboard.press("Escape");
     await expect(shortcutSheet(page)).toBeHidden();
     await expect(viewport(page)).toBeFocused();
+    await expectEditorUsable(page);
+});
+
+test("Help → Keyboard Shortcuts…, the first item of Help, opens the sheet", async ({ page }) => {
+    const help = page
+        .getByRole("menubar", { name: "Main menu" })
+        .getByRole("menuitem", { name: "Help", exact: true });
+    await help.click();
+    const menu = page.getByRole("menu");
+    await expect(menu).toBeVisible();
+    const first = menu.getByRole("menuitem").first();
+    await expect(first).toHaveAttribute("data-command", SHORTCUTS_COMMAND);
+    await expect(first).toHaveText("Keyboard Shortcuts…?");
+    await first.click();
+    await expect(shortcutSheet(page)).toBeVisible();
+    await expect(menu).toHaveCount(0);
+    await expect(shortcutList(page)).toBeFocused();
+    // Closed, the sheet gives the focus to the menu's trigger, which stays on the page.
+    await page.keyboard.press("Escape");
+    await expect(shortcutSheet(page)).toBeHidden();
+    await settle(page);
+    await expect(help).toBeFocused();
+    await expectEditorUsable(page);
+
+    // From the keyboard as well: the item has the highlight when the menu opens.
+    await page.keyboard.press("Enter");
+    await settle(page);
+    await expect(page.getByRole("menu").getByRole("menuitem").first()).toBeFocused();
+    await page.keyboard.press("Enter");
+    await expect(shortcutSheet(page)).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(shortcutSheet(page)).toBeHidden();
     await expectEditorUsable(page);
 });
 

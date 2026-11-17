@@ -280,7 +280,12 @@ only the stored field keeps its old name.
   readouts slot (the tilemap's tool readouts).
 - **Dock, menu bar:** from their registries; menus from the command registry.
 - **Status bar:** the frame renders the `*.status.ts` fields in registry order, left to right,
-  then the hint on the right; a field declares its reserved width.
+  then the hint on the right; a field declares its reserved width. What the fields read and the
+  hint come from `AppShell`'s `status` prop, a `StatusBarSource` the app keeps (`read()` the
+  fields' input, `hint()` the hint, `subscribe(listener)`), as both editors fed their bars from
+  their stores; the bar renders again only when a shown text changes. The hint is
+  `{ text, kind }`: `feedback` (transient tool feedback) in `--warn`, `hint` in the bar's
+  colour. Without `status` the fields read `undefined` and no hint is shown.
 - **Tab strip (BRIEF D18):** presentational. The app passes items (`id`, `label`, `tooltip`,
   `dirty`), the active id, a leading label (project name) and callbacks (`activate`, `close`,
   `move`); the strip owns metrics, keyboard (arrows, Home, End, Delete), drag to reorder and
