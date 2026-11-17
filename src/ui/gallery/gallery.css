@@ -321,3 +321,39 @@
     align-items: center;
     gap: var(--space-8);
 }
+
+/* Tab strip entry (DESIGN §2, SPEC §8): the strip centred in a bar of the menu bar's height. */
+.gallery-tabs {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-12);
+}
+
+.gallery-tabs__bar {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-width: 0;
+    height: 36px;
+    border: var(--border-width) solid var(--border);
+    background: var(--bg-panel);
+}
+
+.gallery-tabs__fact {
+    display: flex;
+    align-items: center;
+    gap: var(--space-8);
+}
+
+.gallery-tabs__value {
+    font-variant-numeric: tabular-nums;
+}
+
+.gallery-tabs__viewport {
+    display: grid;
+    place-items: center;
+    height: 48px;
+    border: var(--border-width) solid var(--border);
+    background: var(--bg-workspace);
+    color: var(--text-muted);
+}
