@@ -277,7 +277,7 @@ for (const theme of THEMES) {
         if (theme === "light") await chooseDemoTheme(page, "light");
         await focus(viewport(page));
         await openPalette(page);
-        await page.keyboard.type("o");
+        await page.keyboard.type("do");
         await expect(activeOption(page)).toHaveCount(1);
         const result = await audit(page);
         expect(result.violations).toEqual([]);

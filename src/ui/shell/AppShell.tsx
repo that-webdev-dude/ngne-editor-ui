@@ -8,17 +8,22 @@ import {
     resolveBottomHeight,
     resolveDockWidth,
 } from "../../model/shell/layout.js";
+import type { ToolBase } from "../../model/tools/types.js";
 import { useEditorUi } from "../editorUi/context.js";
 import { RegionBoundary } from "../messages/RegionBoundary.js";
 import { WindowTooSmall } from "../messages/WindowTooSmall.js";
 import { useWindowHeight, useWindowWidth } from "../platform/useWindowSize.js";
 import { Splitter } from "../primitives/Splitter.js";
+import { ContextBar } from "./ContextBar.js";
 import { Dock } from "./Dock.js";
 import { MenuBar } from "./MenuBar.js";
 import { StatusBar } from "./StatusBar.js";
 import type { StatusBarSource } from "./StatusBar.js";
+import { ToolRail } from "./ToolRail.js";
+import type { RailFilter } from "./ToolRail.js";
+import type { ToolStateSource } from "./useToolState.js";
 
-export interface AppShellProps<StatusInput = unknown> {
+export interface AppShellProps<StatusInput = unknown, Tool extends ToolBase = ToolBase> {
     /** The menu bar's centre: the tab strip, or nothing. */
     menuCentre?: ReactNode;
     /** Content under the tool rail's groups, in the height `railFooterHeight` reserves. */
@@ -38,6 +43,25 @@ export interface AppShellProps<StatusInput = unknown> {
      * Without it the fields read `undefined` and there is no hint.
      */
     status?: StatusBarSource<StatusInput>;
+    /**
+     * The editor's active-tool store (SPEC §8): the tool the rail marks and the context bar
+     * shows, the variant each rail slot shows, the option values, and what selects a tool or
+     * sets an option. Without it the rail shows no tools and the context bar stays empty.
+     */
+    tools?: ToolStateSource<Tool>;
+    /**
+     * Which rail slots show (SPEC §8); without it every slot of the registry. Pass a new
+     * function when what it reads changes (the active layer's kind): the rail and its columns
+     * follow.
+     */
+    railFilter?: RailFilter<Tool>;
+    /**
+     * Where the focus goes after a tool is chosen in the rail with the pointer; the default is
+     * the viewport target (`data-viewport-focus`, SPEC §6).
+     */
+    toolFocus?: () => HTMLElement | null;
+    /** The context bar's readouts, after the active tool's options; never in its overflow menu. */
+    contextReadouts?: ReactNode;
 }
 
 /** Whether the window is below the minimum the layout holds at (1280×720); renders on resize. */
@@ -51,19 +75,26 @@ export function useWindowTooSmall(): boolean {
  * splitters with the sizes kept in the instance's layout store, and the window-too-small notice
  * below 1280×720, while the frame stays mounted, so a resize loses no state. The tool rail runs
  * full height beside the bottom region, which spans the viewport and dock columns (BRIEF D22).
- * The menu bar, the dock and the status bar draw what the instance's registries hold: the menus
- * from the command registry with the palette trigger, the `*.dock.tsx` sections, the
- * `*.status.ts` fields and the hint. The editor fills the slots; region contents, the
- * viewport's included, stay the editor's. Rendered under `UiRoot`, whose instance it reads.
+ * The menu bar, the tool rail, the context bar, the dock and the status bar draw what the
+ * instance's registries hold: the menus from the command registry with the palette trigger,
+ * the `*.tools.ts(x)` rail slots and the active tool's options (or the `*.contextbar.tsx`
+ * content), the `*.dock.tsx` sections, the `*.status.ts` fields and the hint; the rail and the
+ * context bar read the editor's active-tool store (`tools`). The editor fills the slots; region
+ * contents, the viewport's included, stay the editor's. Rendered under `UiRoot`, whose instance
+ * it reads.
  */
-export function AppShell<StatusInput = unknown>({
+export function AppShell<StatusInput = unknown, Tool extends ToolBase = ToolBase>({
     menuCentre,
     railFooter,
     viewport,
     bottom,
     noDocument,
     status,
-}: Readonly<AppShellProps<StatusInput>>) {
+    tools,
+    railFilter,
+    toolFocus,
+    contextReadouts,
+}: Readonly<AppShellProps<StatusInput, Tool>>) {
     const editorUi = useEditorUi();
     const { bottomRegion, railFooterHeight } = editorUi.config;
     const windowWidth = useWindowWidth();
@@ -97,21 +128,20 @@ export function AppShell<StatusInput = unknown>({
                         <MenuBar centre={menuCentre} />
                     </RegionBoundary>
                 </header>
-                <nav className="shell-rail" data-region="tool-rail" aria-label="Tools">
-                    <RegionBoundary name="Tool rail" compact>
-                        {railFooter === undefined || railFooter === null ? null : (
-                            <div className="shell-rail__footer" data-rail-footer="">
-                                {railFooter}
-                            </div>
-                        )}
-                    </RegionBoundary>
-                </nav>
+                <ToolRail
+                    tools={tools}
+                    filter={railFilter}
+                    focusTarget={toolFocus}
+                    footer={railFooter}
+                />
                 <section
                     className="shell-context"
                     data-region="context-bar"
                     aria-label="Tool options"
                 >
-                    <RegionBoundary name="Context bar">{null}</RegionBoundary>
+                    <RegionBoundary name="Context bar">
+                        <ContextBar tools={tools} readouts={contextReadouts} />
+                    </RegionBoundary>
                 </section>
                 <main className="shell-viewport" data-region="viewport">
                     <RegionBoundary name="Viewport">

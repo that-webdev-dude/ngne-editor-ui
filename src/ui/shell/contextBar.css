@@ -1,0 +1,68 @@
+/*
+ * The context bar's content (SPEC §8, DESIGN §2): the active tool's name, its options, the
+ * overflow menu's trigger and the editor's readouts, in one row across the bar.
+ */
+.context-bar {
+    position: relative;
+    display: flex;
+    flex: 1;
+    align-items: center;
+    gap: var(--space-12);
+    min-width: 0;
+    height: 100%;
+}
+
+/* The active tool's name, first in the bar. */
+.context-tool {
+    margin-right: var(--space-4);
+    font-weight: var(--font-weight-strong);
+    white-space: nowrap;
+}
+
+.context-readouts {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    gap: var(--space-12);
+}
+
+/* A readout of the active tool: plain text after its label. */
+.context-readout {
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+/* The options that do not fit, stacked in the overflow menu. */
+.context-overflow__options {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-8);
+}
+
+/*
+ * Every option at its natural width, unseen and taking no room: the box clips the row, so the
+ * row adds no overflow to the page.
+ */
+.context-bar__measure {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 0;
+    height: 0;
+    overflow: hidden;
+    visibility: hidden;
+    pointer-events: none;
+}
+
+.context-bar__measure-row {
+    display: flex;
+    align-items: center;
+    width: max-content;
+}
+
+.context-bar__measure-trigger {
+    display: block;
+    width: var(--control-height);
+    height: var(--control-height);
+}
