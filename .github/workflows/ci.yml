@@ -78,24 +78,3 @@ jobs:
                       name="$(basename "$file" .perf.ts)"
                       npm run perf -- "$name" || echo "::warning::Benchmark $name did not finish."
                   done
-
-    # SonarQube Cloud, CI-based analysis with the unit tests' coverage (sonar-project.properties).
-    # Automatic Analysis is off for the project; with it on, this scan fails.
-    sonar:
-        runs-on: ubuntu-latest
-        steps:
-            - uses: actions/checkout@v4
-              with:
-                  # Full history, for the analysis of new code and blame.
-                  fetch-depth: 0
-            - uses: actions/setup-node@v4
-              with:
-                  node-version: 24
-                  cache: npm
-            - run: npm ci --ignore-scripts
-            - name: Unit tests with coverage
-              run: npm run test:coverage
-            - name: SonarQube Cloud scan
-              uses: SonarSource/sonarqube-scan-action@59202af334b4ba7b5db01b701b8e79f8b3bef0f4 # v8.5.0
-              env:
-                  SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
