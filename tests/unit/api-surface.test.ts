@@ -424,7 +424,13 @@ const API: Record<string, readonly string[]> = {
         "unpackRgba",
         "writeOklab",
     ],
-    "@ngne/editor-ui/gallery": ["Gallery"],
+    "@ngne/editor-ui/gallery": [
+        "Gallery",
+        "GalleryEntry",
+        "GalleryProps",
+        "GalleryTheme",
+        "useGalleryTheme",
+    ],
 };
 
 type Target = string | { types: string; default: string };

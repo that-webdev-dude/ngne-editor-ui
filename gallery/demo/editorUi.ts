@@ -19,13 +19,19 @@ import type { DemoTool } from "./tools.ts";
 // The page opened with `?bottom=none` builds the instance without one, the configuration of an
 // editor that has no bottom region. Its tools (`*.tools.ts`) with the height their rail footer
 // takes (SPEC §5 `railFooterHeight`), and its context-bar content (`*.contextbar.tsx`). Its
-// build facts are a fixture (`appInfo.ts`), which Help → About NGNE Demo Editor… shows.
+// build facts are a fixture (`appInfo.ts`), which Help → About NGNE Demo Editor… shows. The
+// page opened with `?theme=dark` or `?theme=light` shows that theme without storing it, as the
+// gallery's Demo editor entry opens it to follow the gallery's switch; a choice in Preferences
+// is stored as usual.
+
+const ADDRESS = new URLSearchParams(window.location.search);
 
 /** The bottom region, or none when the page's address asks for none. */
 const BOTTOM_REGION =
-    new URLSearchParams(window.location.search).get("bottom") === "none"
-        ? null
-        : { id: "timeline", label: "Timeline" };
+    ADDRESS.get("bottom") === "none" ? null : { id: "timeline", label: "Timeline" };
+
+/** The theme the page's address asks for, or null. */
+const ADDRESS_THEME = ADDRESS.get("theme");
 
 const MENUS = ["File", "Edit", "View", "Help"] as const;
 export type DemoMenu = (typeof MENUS)[number];
@@ -66,3 +72,8 @@ export const editorUi = createEditorUi({
     refreshOn: [rowsStore],
     surfaces: { preferences: PreferencesDialog },
 });
+
+// The address's theme, set in the store without the write `setTheme` makes.
+if (ADDRESS_THEME === "dark" || ADDRESS_THEME === "light") {
+    editorUi.theme.setState({ theme: ADDRESS_THEME });
+}

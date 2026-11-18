@@ -1,0 +1,26 @@
+/* The gallery site's own entry (DemoEditorEntry.tsx): the demo editor's frame, scaled to the
+   entry's width from its top-left corner. Tokens only (SPEC §9.2). */
+.site-demo__links {
+    margin: 0;
+}
+
+.site-demo__link {
+    color: var(--text);
+    text-decoration: underline;
+    text-underline-offset: var(--space-2);
+}
+
+/* The outline marks the frame's edge where the demo's panel meets the gallery's, and takes
+   no room from the scaled frame. */
+.site-demo {
+    width: 100%;
+    max-width: 1280px;
+    overflow: hidden;
+    outline: var(--border-width) solid var(--border);
+}
+
+.site-demo__frame {
+    display: block;
+    border: 0;
+    transform-origin: 0 0;
+}

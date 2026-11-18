@@ -194,7 +194,15 @@ test("the keyboard moves through the menus and items; Escape closes them; Enter 
 });
 
 test("the menuCentre slot sits between the menus and the palette trigger", async ({ page }) => {
-    await expect(centre(page)).toHaveText("Untitled document");
+    const tabs = centre(page).getByRole("tablist", { name: "Documents" }).getByRole("tab");
+    await expect(tabs.locator(".tab-strip__name")).toHaveText([
+        "Untitled document",
+        "Level 1",
+        "Sprites",
+    ]);
+    await expect(tabs.and(page.locator('[aria-selected="true"]'))).toHaveText(
+        "Untitled document*Unsaved changes",
+    );
     const bar = await boxOf(page.locator("header.shell-menubar"));
     const menus = await boxOf(menuBar(page));
     const middle = await boxOf(centre(page).locator("[data-demo-menu-centre]"));
@@ -210,8 +218,10 @@ test("the menuCentre slot sits between the menus and the palette trigger", async
     expect(Math.abs(middle.x + middle.width / 2 - (slot.x + slot.width / 2))).toBeLessThanOrEqual(
         1,
     );
-    // All on the bar's line.
-    for (const box of [menus, middle, trigger]) {
+    // All on the bar's line: the menus, the tabs the slot draws, and the trigger.
+    const tabBoxes = await Promise.all((await tabs.all()).map((tab) => boxOf(tab)));
+    expect(tabBoxes).toHaveLength(3);
+    for (const box of [menus, ...tabBoxes, trigger]) {
         expect(box.y).toBeGreaterThanOrEqual(bar.y);
         expect(box.y + box.height).toBeLessThanOrEqual(bar.y + bar.height);
     }
