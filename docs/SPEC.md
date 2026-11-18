@@ -323,6 +323,13 @@ closing-popover hook, as the sprite editor at the cut.
   `[data-theme="light"]`.
 - `@ngne/editor-ui/styles/check` exports `checkStylesheets(paths)`, which apps run in a unit
   test over their own CSS: it fails on a raw colour outside `tokens.css`.
+- `paths` are files, read relative to the working directory; the app lists them (no directory
+  search). A file named `tokens.css` is skipped. A raw colour is a hex colour, a colour function
+  (`rgb()`, `hsl()`, `hwb()`, `lab()`, `lch()`, `oklab()`, `oklch()`, `color()`,
+  `color-mix()`, `light-dark()`) or a named or system colour in a declaration value, a
+  `var()` fallback included; comments, strings and `url()` are not read, and `transparent`,
+  `currentColor` and `var(--…)` are not raw colours. It throws one error listing every offence
+  as `file:line property: value (colour)`; an empty list or an unreadable file throws too.
 
 ## 10. PWA
 

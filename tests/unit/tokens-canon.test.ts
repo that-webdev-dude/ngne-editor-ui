@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, describe, expect, it } from "vitest";
+import { checkStylesheets } from "../../src/build/styles/index.ts";
 
 // The suite tokens (DESIGN §3) as CSS custom properties, checked against the canon: every
 // colour of the DESIGN §3.1 table, read from docs/DESIGN.md, with its dark and light value;
@@ -225,31 +226,7 @@ describe("token contrast (DESIGN §3.1, WCAG 2.1 AA)", () => {
     });
 });
 
-// --- Raw colours outside tokens.css ---------------------------------------------------------
-
-const NAMED_COLOURS =
-    "aliceblue antiquewhite aqua aquamarine azure beige bisque black blanchedalmond blue blueviolet brown burlywood cadetblue chartreuse chocolate coral cornflowerblue cornsilk crimson cyan darkblue darkcyan darkgoldenrod darkgray darkgreen darkgrey darkkhaki darkmagenta darkolivegreen darkorange darkorchid darkred darksalmon darkseagreen darkslateblue darkslategray darkslategrey darkturquoise darkviolet deeppink deepskyblue dimgray dimgrey dodgerblue firebrick floralwhite forestgreen fuchsia gainsboro ghostwhite gold goldenrod gray green greenyellow grey honeydew hotpink indianred indigo ivory khaki lavender lavenderblush lawngreen lemonchiffon lightblue lightcoral lightcyan lightgoldenrodyellow lightgray lightgreen lightgrey lightpink lightsalmon lightseagreen lightskyblue lightslategray lightslategrey lightsteelblue lightyellow lime limegreen linen magenta maroon mediumaquamarine mediumblue mediumorchid mediumpurple mediumseagreen mediumslateblue mediumspringgreen mediumturquoise mediumvioletred midnightblue mintcream mistyrose moccasin navajowhite navy oldlace olive olivedrab orange orangered orchid palegoldenrod palegreen paleturquoise palevioletred papayawhip peachpuff peru pink plum powderblue purple rebeccapurple red rosybrown royalblue saddlebrown salmon sandybrown seagreen seashell sienna silver skyblue slateblue slategray slategrey snow springgreen steelblue tan teal thistle tomato turquoise violet wheat white whitesmoke yellow yellowgreen";
-const SYSTEM_COLOURS =
-    "accentcolor accentcolortext activetext buttonborder buttonface buttontext canvas canvastext field fieldtext graytext highlight highlighttext linktext mark marktext selecteditem selecteditemtext visitedtext";
-
-const RAW_COLOUR_PATTERNS: readonly RegExp[] = [
-    /#[0-9a-f]{3,8}(?![\w-])/i,
-    /(?<![\w-])(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color|color-mix|light-dark)\s*\(/i,
-    new RegExp(
-        `(?<![\\w-])(?:${`${NAMED_COLOURS} ${SYSTEM_COLOURS}`.split(" ").join("|")})(?![\\w-])`,
-        "i",
-    ),
-];
-
-/** The raw colour inside a declaration value, or null. Tokens and keywords are not raw. */
-function rawColour(value: string): string | null {
-    const withoutTokens = value.replace(/var\(\s*--[\w-]+\s*\)/g, "");
-    for (const pattern of RAW_COLOUR_PATTERNS) {
-        const match = pattern.exec(withoutTokens);
-        if (match) return match[0];
-    }
-    return null;
-}
+// --- Raw colours outside tokens.css (checkStylesheets, tests/unit/canon-stylesheets) --------
 
 /** Orders strings by UTF-16 code unit, whatever the machine's locale. */
 function byCodeUnit(a: string, b: string): number {
@@ -276,19 +253,6 @@ function stylesheets(root = ROOT): string[] {
         .sort(byCodeUnit);
 }
 
-/** Every declaration with a raw colour in a stylesheet under `root` other than tokens.css. */
-function rawColourOffences(root = ROOT): string[] {
-    const offences = [];
-    for (const file of stylesheets(root)) {
-        if (file === TOKENS_FILE) continue;
-        for (const { property, value, line } of declarations(read(file, root))) {
-            const raw = rawColour(value);
-            if (raw) offences.push(`${file}:${line} ${property}: ${value} (${raw})`);
-        }
-    }
-    return offences;
-}
-
 describe("raw colours", () => {
     const temp = mkdtempSync(join(tmpdir(), "tokens-canon-"));
     afterAll(() => rmSync(temp, { recursive: true, force: true }));
@@ -306,61 +270,15 @@ describe("raw colours", () => {
         return root;
     }
 
-    it("recognises raw colour values", () => {
-        for (const value of [
-            "#fff",
-            "#0f0f10",
-            "1px solid #2a2a2e80",
-            "rgb(0 0 0 / 0.4)",
-            "rgba(255, 255, 255, 0.12)",
-            "hsl(200 50% 50%)",
-            "oklch(0.7 0.1 200)",
-            "color-mix(in srgb, var(--accent) 20%, transparent)",
-            "1px solid red",
-            "White",
-            "linear-gradient(to right, black, transparent)",
-            "CanvasText",
-        ]) {
-            expect(rawColour(value), value).not.toBeNull();
-        }
-    });
-
-    it("accepts tokens and colour keywords that carry no colour", () => {
-        for (const value of [
-            "var(--text)",
-            "var(--border-width) solid var(--border-strong)",
-            "transparent",
-            "currentColor",
-            "inherit",
-            "none",
-            "background-color var(--motion-fast) var(--motion-ease)",
-            "ui-fade-in var(--motion-surface) var(--motion-ease)",
-            "var(--border-strong) transparent",
-            "brightness(1.1)",
-        ]) {
-            expect(rawColour(value), value).toBeNull();
-        }
-    });
-
-    it("fails a raw colour in a fixture stylesheet other than tokens.css", () => {
-        const root = fixture(
-            "raw",
-            "src/ui/fixture/fixture.css",
-            ".fixture {\n    color: var(--text);\n    border: 1px solid #2a2a2e;\n}\n",
-        );
-        expect(rawColourOffences(root)).toEqual([
-            "src/ui/fixture/fixture.css:3 border: 1px solid #2a2a2e (#2a2a2e)",
-        ]);
-    });
-
-    it("passes a fixture stylesheet that uses tokens only, and the raw colours of tokens.css", () => {
+    it("lists the stylesheets of src/ and gallery/ of a tree, its build output left out", () => {
         const root = fixture(
             "tokens-only",
             "gallery/site.css",
             ".site {\n    background: var(--bg-panel);\n}\n",
         );
+        mkdirSync(join(root, "gallery", "dist"), { recursive: true });
+        writeFileSync(join(root, "gallery", "dist", "site.css"), ".site {\n    color: #fff;\n}\n");
         expect(stylesheets(root)).toEqual(["gallery/site.css", TOKENS_FILE]);
-        expect(rawColourOffences(root)).toEqual([]);
     });
 
     it("finds the package's stylesheets", () => {
@@ -371,7 +289,20 @@ describe("raw colours", () => {
     });
 
     it("finds no raw colour in any stylesheet other than tokens.css", () => {
-        expect(rawColourOffences()).toEqual([]);
+        expect(() => checkStylesheets(stylesheets().map((file) => join(ROOT, file)))).not.toThrow();
+    });
+
+    it("fails a raw colour in a fixture stylesheet other than tokens.css", () => {
+        const root = fixture(
+            "raw",
+            "src/ui/fixture/fixture.css",
+            ".fixture {\n    color: var(--text);\n    border: 1px solid #2a2a2e;\n}\n",
+        );
+        const files = stylesheets(root);
+        expect(files).toEqual(["src/styles/tokens.css", "src/ui/fixture/fixture.css"]);
+        expect(() => checkStylesheets(files.map((file) => join(root, file)))).toThrow(
+            `${join(root, "src/ui/fixture/fixture.css")}:3 border: 1px solid #2a2a2e (#2a2a2e)`,
+        );
     });
 
     it("uses only custom properties that tokens.css defines or the runtime sets", () => {

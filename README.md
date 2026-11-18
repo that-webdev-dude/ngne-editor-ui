@@ -107,6 +107,21 @@ declare const self: { __WB_MANIFEST: PrecacheEntry[] };
 installServiceWorker({ id: "ngne-sprite-editor", manifest: self.__WB_MANIFEST });
 ```
 
+A unit test of the app keeps its own stylesheets to the canon: only the package's `tokens.css`
+holds raw colours, so every colour of the app's CSS is a token (`var(--…)`):
+
+```ts
+// tests/unit/stylesheets.test.ts
+import { globSync } from "node:fs";
+import { checkStylesheets } from "@ngne/editor-ui/styles/check";
+import { expect, it } from "vitest";
+
+it("takes every colour of the app's CSS from the tokens", () => {
+    // Throws on a hex colour, rgb(), hsl() or a named colour, naming file, line and value.
+    expect(() => checkStylesheets(globSync("src/**/*.css"))).not.toThrow();
+});
+```
+
 Every option, subpath and persisted name is in [docs/SPEC.md](docs/SPEC.md). Moving an
 existing editor onto the package, or to a newer version of it: [docs/MIGRATION.md](docs/MIGRATION.md).
 
