@@ -64,7 +64,8 @@ describe("createEditorUi defaults (SPEC §5)", () => {
             overlays: {},
             statusFields: {},
         });
-        expect(editorUi.dialogs.size).toBe(0);
+        // The package's own dialog only (SPEC §11): the editor registers none.
+        expect([...editorUi.dialogs.keys()]).toEqual(["licences"]);
         expect(editorUi.dockPanels).toEqual([]);
         expect(editorUi.contextBarContent).toEqual([]);
         expect(editorUi.tools.list()).toEqual([]);
@@ -186,7 +187,8 @@ describe("createEditorUi hands every module map to its registry (SPEC §1.3)", (
             ["a.later", "/src/a.commands.ts"],
             ["b.run", "/src/b.commands.ts"],
         ]);
-        expect([...editorUi.dialogs.keys()]).toEqual(["a"]);
+        // The package's dialog first (SPEC §11), then the editor's.
+        expect([...editorUi.dialogs.keys()]).toEqual(["licences", "a"]);
         expect(editorUi.dockPanels.map((panel) => panel.id)).toEqual(["a"]);
         expect(editorUi.contextBarContent.map((content) => content.id)).toEqual(["a"]);
         expect(editorUi.tools.list().map((tool) => [tool.id, tool.source])).toEqual([

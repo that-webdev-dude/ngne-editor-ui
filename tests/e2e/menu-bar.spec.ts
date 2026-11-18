@@ -62,7 +62,8 @@ test("the menus follow the configuration's order, each generated from the regist
         // Orders in different hundreds are separated by a line.
         File: ["New DocumentCtrl+Alt+N", "—", "Close Document"],
         Edit: ["UndoCtrl+Z", "—", "Command Palette…Ctrl+K", "Preferences…"],
-        View: ["Zoom InCtrl+=", "Fit to Window"],
+        // Open Source Licences… last, in a group of its own (SPEC §11).
+        View: ["Zoom InCtrl+=", "Fit to Window", "—", "Open Source Licences…"],
         // Keyboard Shortcuts… first; an editor's items after it, in a group of their own;
         // About last, in a group of its own (SPEC §11).
         Help: ["Keyboard Shortcuts…?", "—", "Release Notes", "—", "About NGNE Demo Editor…"],
