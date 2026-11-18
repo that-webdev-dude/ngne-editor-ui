@@ -3,6 +3,7 @@ import type { StoreApi } from "zustand/vanilla";
 import { createCommandRegistry, registerCommandModules } from "../../model/commands/registry.js";
 import type { CommandRegistry } from "../../model/commands/registry.js";
 import type { CommandModule } from "../../model/commands/types.js";
+import { RegistrationError } from "../../model/modules.js";
 import type { ModuleMap } from "../../model/modules.js";
 import { collectOverlayLayers } from "../../model/overlay/layers.js";
 import type { OverlayLayer } from "../../model/overlay/layers.js";
@@ -18,7 +19,7 @@ import type { ToolRegistry } from "../../model/tools/registry.js";
 import type { ToolBase } from "../../model/tools/types.js";
 import { createKeyContextStore } from "../commands/keyContextState.js";
 import type { KeyContextState } from "../commands/keyContextState.js";
-import type { CommandDialogs } from "../messages/dialogRegistry.js";
+import type { CommandDialogModule, CommandDialogs } from "../messages/dialogRegistry.js";
 import { browserStorage } from "../platform/storage.js";
 import { createBottomRegionStore } from "../shell/bottomRegion.js";
 import type { BottomRegionState } from "../shell/bottomRegion.js";
@@ -26,7 +27,11 @@ import { createLayoutStore } from "../shell/layoutStore.js";
 import type { LayoutState } from "../shell/layoutStore.js";
 import { PACKAGE_SURFACES, resolveEditorUiConfig } from "./config.js";
 import type { EditorUiConfig, ResolvedEditorUiConfig } from "./config.js";
-import { PACKAGE_COMMAND_MODULES, PACKAGE_COMMAND_SOURCE } from "./packageCommands.js";
+import {
+    PACKAGE_COMMAND_MODULES,
+    PACKAGE_COMMAND_SOURCE,
+    PACKAGE_DIALOG_MODULES,
+} from "./packageCommands.js";
 import type { PackageCommandModule, PackageCommandScope, PackageMenu } from "./packageCommands.js";
 import { createRecentCommandsStore } from "./recentCommands.js";
 import type { RecentCommandsState } from "./recentCommands.js";
@@ -66,7 +71,7 @@ export interface EditorUi<
     readonly keyContextState: StoreApi<KeyContextState<Context>>;
     /** The command palette, the shortcut sheet and the editor's surfaces. */
     readonly surfaces: Surfaces;
-    /** The `*.dialog.tsx` dialogs by request kind, for the dialog host. */
+    /** The package's dialogs and the editor's `*.dialog.tsx` ones by request kind, for the dialog host. */
     readonly dialogs: CommandDialogs;
     /** The `*.dock.tsx` panels in dock order. */
     readonly dockPanels: readonly DockPanel<ComponentType>[];
@@ -91,6 +96,8 @@ export const persistedName = (id: string, name: "theme" | "layout" | "recent-com
 export interface PackageParts {
     /** The package's command modules, each called with the instance, registered before the editor's. */
     commandModules: ModuleMap<PackageCommandModule>;
+    /** The package's dialog modules, collected with the editor's; none when not given. */
+    dialogModules?: ModuleMap<CommandDialogModule>;
 }
 
 /** The package's modules as one instance registers them: each called with its scope. */
@@ -101,6 +108,37 @@ function packageModulesFor(
     return Object.fromEntries(
         Object.entries(modules).map(([path, module]) => [path, module(scope)]),
     );
+}
+
+/** The path of the module of `map` that registers a dialog of `kind`. */
+function dialogPath(map: ModuleMap<CommandDialogModule>, kind: string): string {
+    const found = Object.entries(map).find(([, module]) =>
+        module.commandDialogs?.some((dialog) => dialog.kind === kind),
+    );
+    return found?.[0] ?? "";
+}
+
+/**
+ * The package's dialogs, then the editor's `*.dialog.tsx` ones, by request kind. An editor's
+ * dialog of a kind the package registers fails at startup with a `RegistrationError` naming the
+ * editor's module, as a clash of command ids does.
+ */
+function instanceDialogs(
+    packageModules: ModuleMap<CommandDialogModule>,
+    editorModules: ModuleMap<CommandDialogModule>,
+): CommandDialogs {
+    const dialogs = new Map(collectCommandDialogs(packageModules));
+    for (const [kind, dialog] of collectCommandDialogs(editorModules)) {
+        if (dialogs.has(kind)) {
+            const path = dialogPath(editorModules, kind);
+            throw new RegistrationError(
+                `Dialog kind "${kind}" is used by ${dialogPath(packageModules, kind)} and ${path}.`,
+                path,
+            );
+        }
+        dialogs.set(kind, dialog);
+    }
+    return dialogs;
 }
 
 /**
@@ -162,7 +200,7 @@ export function buildEditorUi<
         commands,
         keyContextState,
         surfaces,
-        dialogs: collectCommandDialogs(modules.dialogs),
+        dialogs: instanceDialogs(parts.dialogModules ?? {}, modules.dialogs),
         dockPanels: collectDockPanels(modules.dock),
         contextBarContent: collectContextBarContent(modules.contextBars),
         tools,
@@ -185,5 +223,8 @@ export function createEditorUi<
 >(
     config: EditorUiConfig<Menu, Context, Tool, Frame, StatusInput>,
 ): EditorUi<Menu, Context, Tool, Frame, StatusInput> {
-    return buildEditorUi(config, { commandModules: PACKAGE_COMMAND_MODULES });
+    return buildEditorUi(config, {
+        commandModules: PACKAGE_COMMAND_MODULES,
+        dialogModules: PACKAGE_DIALOG_MODULES,
+    });
 }
