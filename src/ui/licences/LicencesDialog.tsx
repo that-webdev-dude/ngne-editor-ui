@@ -31,7 +31,12 @@ export function LicencesDialog({ request }: Readonly<{ request: LicencesRequest 
                     <a href={request.address} target="_blank" rel="noopener noreferrer">
                         {request.address}
                     </a>
-                    .
+                    {/* The full stop is an element of its own, so the paragraph's own text is
+                        one run. axe's contrast check (SPEC §3) compares what lies behind each
+                        run of an element's text, the page under the dialog included, and
+                        gives no verdict when they differ: a full stop past the link can fall
+                        over another part of the page than the text before it. */}
+                    <span>.</span>
                 </p>
             ) : (
                 <section aria-label="Licence text">
