@@ -1,12 +1,41 @@
+import { readFileSync } from "node:fs";
+import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { ESLint } from "eslint";
+import ts from "typescript";
 import { describe, expect, it } from "vitest";
 
 // The layer import table of SPEC §1.1, as lint enforces it (eslint/layer-imports.js): fixture
-// modules that break it fail lint at their place in the tree; the real tree passes.
+// modules that break it fail lint at their place in the tree; the real tree passes. The
+// worker's subpath reaches no React, DOM or UI module through any chain of imports (SPEC §4).
 
 const ROOT = fileURLToPath(new URL("../../", import.meta.url));
 const eslint = new ESLint({ cwd: ROOT });
+
+/**
+ * Every module `entry` (a path under the root) reaches through its imports, and every import
+ * that is not relative, as written.
+ */
+function importGraph(entry: string): { modules: string[]; bare: string[] } {
+    const modules = new Set<string>();
+    const bare = new Set<string>();
+    const visit = (path: string) => {
+        if (modules.has(path)) return;
+        modules.add(path);
+        const { importedFiles } = ts.preProcessFile(readFileSync(join(ROOT, path), "utf8"));
+        for (const { fileName } of importedFiles) {
+            if (!fileName.startsWith(".")) {
+                bare.add(fileName);
+                continue;
+            }
+            // Relative imports name the built file (SPEC §4): `./x.js` is `./x.ts`.
+            const target = relative(ROOT, join(ROOT, dirname(path), fileName));
+            visit(target.replaceAll("\\", "/").replace(/\.js$/, ".ts"));
+        }
+    };
+    visit(entry);
+    return { modules: [...modules].sort(), bare: [...bare] };
+}
 
 /** The layer-rule messages of `code` linted as the module at `path`. */
 async function layerProblems(path: string, code: string): Promise<string[]> {
@@ -78,6 +107,14 @@ describe("layer imports", () => {
         ];
         for (const [path, code] of allowed)
             expect(await layerProblems(path, code), path).toEqual([]);
+    });
+
+    it("keeps the worker subpath to the worker and model layers, with no package import", () => {
+        const { modules, bare } = importGraph("src/worker/index.ts");
+        expect(modules).toContain("src/worker/serviceWorker.ts");
+        expect(modules).toContain("src/model/pwa/precache.ts");
+        expect(modules.filter((path) => !/^src\/(worker|model)\//.test(path))).toEqual([]);
+        expect(bare).toEqual([]);
     });
 
     it("passes the real tree", async () => {

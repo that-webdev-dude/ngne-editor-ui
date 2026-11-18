@@ -2,13 +2,18 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { createEditorUi, setTheme } from "../../src/ui/index.ts";
 import type { AppInfo, EditorUiConfig } from "../../src/ui/index.ts";
 import type { KeyValueStorage } from "../../src/ui/platform/index.ts";
+import { pwaNames, registerAppUpdates } from "../../src/ui/pwa/index.ts";
+import { installServiceWorker } from "../../src/worker/index.ts";
+import { FakeContainer, FakeWorker, simulateWorkerScope } from "./support/pwa.ts";
 
 // The names an editor UI instance persists under (SPEC §5): the theme under `<id>.theme`, the
 // shell's layout under `<id>.layout` with its stored fields unchanged (`timelineHeight` for the
 // bottom region) and the recent commands under `<id>.recent-commands`, the names both editors
 // use today, so a migrating editor keeps its users' data. Each instance reads and writes
 // exactly those keys of the browser's storage (localStorage, stubbed here), and loads values
-// the editors stored before they used the package. With the theme store's own cases.
+// the editors stored before they used the package. The service worker's names too: its cache
+// prefix, the pages' messages and the older-windows key, in the worker and on the page. With the
+// theme store's own cases.
 
 const IDS = ["ngne-sprite-editor", "ngne-tilemap-editor"] as const;
 
@@ -134,6 +139,69 @@ describe.each(IDS)("persisted names of %s", (id) => {
         expect(editorUi.theme.getState().theme).toBe("dark");
         expect(editorUi.layout.getState()).toMatchObject({ dockWidth: null, bottomHeight: null });
         expect(editorUi.recentCommands.getState().ids).toEqual([]);
+    });
+});
+
+/** The service worker's names as each editor's source writes them today. */
+const APP_PWA_NAMES = {
+    "ngne-sprite-editor": {
+        cachePrefix: "ngne-sprite-editor-",
+        skipWaiting: "ngne-sprite-editor:skip-waiting",
+        started: "ngne-sprite-editor:started",
+        olderWindows: "ngne-sprite-editor-older-windows",
+    },
+    "ngne-tilemap-editor": {
+        cachePrefix: "ngne-tilemap-editor-",
+        skipWaiting: "ngne-tilemap-editor:skip-waiting",
+        started: "ngne-tilemap-editor:started",
+        olderWindows: "ngne-tilemap-editor-older-windows",
+    },
+} as const;
+
+describe.each(IDS)("service worker names of %s", (id) => {
+    const names = APP_PWA_NAMES[id];
+    const scope = "https://example.test/app/";
+
+    it("are the editor's current cache prefix, worker messages and older-windows key", () => {
+        expect(pwaNames(id)).toEqual(names);
+    });
+
+    it("are the names the worker caches under and answers to", async () => {
+        const worker = simulateWorkerScope(scope, { [`${scope}index.html`]: "<!doctype html>" });
+        worker.storage.fill(`${names.cachePrefix}00000000`, {});
+        installServiceWorker({ id, manifest: [{ url: "index.html", revision: "1" }] });
+        await worker.install();
+        const [, current] = await worker.storage.keys();
+        expect(current).toMatch(new RegExp(`^${names.cachePrefix}[0-9a-f]{8}$`));
+
+        worker.state.windows = ["older-page"];
+        await worker.activate();
+        expect(worker.storage.urls(current!)).toContain(`${scope}${names.olderWindows}`);
+        worker.state.windows = [];
+        await worker.message({ type: names.started });
+        expect(await worker.storage.keys()).toEqual([current]);
+
+        await worker.message({ type: names.skipWaiting });
+        expect(worker.state.skipWaiting).toBe(1);
+    });
+
+    it("are the messages the page sends its worker", async () => {
+        const served = new FakeWorker();
+        const container = new FakeContainer(served);
+        const updates = registerAppUpdates({
+            id,
+            container,
+            url: "sw.js",
+            scope: "/",
+            reload: () => {},
+        });
+        await updates.check();
+        const waiting = new FakeWorker();
+        container.registration.install(waiting);
+        waiting.become("installed");
+        updates.apply();
+        expect(served.messages).toEqual([{ type: names.started }]);
+        expect(waiting.messages).toEqual([{ type: names.skipWaiting }]);
     });
 });
 
