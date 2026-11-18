@@ -1,14 +1,20 @@
-import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { execFileSync } from "node:child_process";
+import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { join, relative } from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import ts from "typescript";
-import { describe, expect, it } from "vitest";
+import { describe, expect, inject, it } from "vitest";
+import { pack } from "./support/npm.ts";
 
-// The public API of the package (SPEC §3, §4): every subpath of the built `exports` map and
-// every name each one exports, types included, read from its declarations in dist/. A change
-// to these lists is a deliberate edit, with a CHANGELOG entry once the package is released.
+// The public API of the package (SPEC §3, §4), as a consumer resolves it: every subpath of the
+// `exports` map and every name each one exports, types included, resolved through Node and
+// TypeScript from a scratch project that installed the packed tarball (tests/unit/setup). A
+// change to these lists is a deliberate edit, with a CHANGELOG entry once the package is
+// released.
 
 const ROOT = fileURLToPath(new URL("../../", import.meta.url));
+const CONSUMER = inject("consumerRoot");
+const INSTALLED = join(CONSUMER, "node_modules", "@ngne", "editor-ui");
 
 /** Every subpath, in the order of SPEC §4, and its exported names, sorted by code unit. */
 const API: Record<string, readonly string[]> = {
@@ -35,7 +41,7 @@ const API: Record<string, readonly string[]> = {
         "useTheme",
     ],
     "@ngne/editor-ui/styles.css": [],
-    "@ngne/editor-ui/styles/check": [],
+    "@ngne/editor-ui/styles/check": ["checkStylesheets"],
     "@ngne/editor-ui/primitives": [
         "Button",
         "ButtonProps",
@@ -434,10 +440,11 @@ const API: Record<string, readonly string[]> = {
 };
 
 type Target = string | { types: string; default: string };
-const manifest = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8")) as {
-    name: string;
-    exports: Record<string, Target>;
-};
+type Manifest = { name: string; exports: Record<string, Target> };
+
+const manifest = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8")) as Manifest;
+const installed = JSON.parse(readFileSync(join(INSTALLED, "package.json"), "utf8")) as Manifest;
+const keys = Object.keys(manifest.exports);
 
 /** Orders strings by UTF-16 code unit, whatever the machine's locale. */
 function byCodeUnit(a: string, b: string): number {
@@ -445,68 +452,241 @@ function byCodeUnit(a: string, b: string): number {
     return a < b ? -1 : 1;
 }
 
+const slash = (path: string) => path.replaceAll("\\", "/");
+
 /** The subpath an `exports` key names: "." is the package itself. */
 const subpathOf = (key: string) =>
     key === "." ? manifest.name : `${manifest.name}/${key.slice(2)}`;
 
-/** The subpaths of the SPEC §4 table, in its order. */
-function specSubpaths(): string[] {
+/** The rows of the SPEC §4 table, in its order: subpath and layer. */
+function specRows(): { subpath: string; layer: string }[] {
     const spec = readFileSync(join(ROOT, "docs", "SPEC.md"), "utf8");
     const section = spec.slice(spec.indexOf("## 4. Packaging"), spec.indexOf("## 5."));
-    return [...section.matchAll(/^\| `(@ngne\/editor-ui[^`]*)` \|/gm)].map((match) => match[1]!);
+    return [...section.matchAll(/^\| `(@ngne\/editor-ui[^`]*)` \| ([^|]+) \|/gm)].map((match) => ({
+        subpath: match[1]!,
+        layer: match[2]!.trim(),
+    }));
 }
+
+/** A subpath's installed file of each kind; null for the types of the CSS entry. */
+function installedFile(key: string, kind: "types" | "default"): string | null {
+    const target = installed.exports[key]!;
+    if (typeof target === "string") return kind === "default" ? join(INSTALLED, target) : null;
+    return join(INSTALLED, target[kind]);
+}
+
+// --- TypeScript -----------------------------------------------------------------------------
+
+type Runtime = "browser" | "worker" | "node";
 
 /**
- * One program over every subpath's declaration file: the declarations they share (the peers'
- * types, the package's own modules) are read once, not once per subpath.
+ * How a consumer compiles each layer (SPEC §4): UI, Model and Colour with the DOM library, the
+ * worker with the WebWorker library, Build with Node's types. The CSS entry has no types.
  */
-function declarationProgram(files: readonly string[]): ts.Program {
-    return ts.createProgram(files, { strict: true, skipLibCheck: true, noEmit: true });
+const RUNTIMES: Record<Runtime, { lib: string[]; types: string[] }> = {
+    browser: { lib: ["lib.es2022.d.ts", "lib.dom.d.ts", "lib.dom.iterable.d.ts"], types: [] },
+    worker: { lib: ["lib.es2022.d.ts", "lib.webworker.d.ts"], types: [] },
+    node: { lib: ["lib.es2022.d.ts"], types: ["node"] },
+};
+
+/** The runtime a layer of the SPEC §4 table compiles for, or null for the CSS entry. */
+function runtimeOf(layer: string): Runtime | null {
+    if (layer === "Styles") return null;
+    if (layer === "Worker") return "worker";
+    if (layer === "Build") return "node";
+    return "browser";
 }
 
-/** The names a declaration file of `program` exports, values and types, sorted by code unit. */
-function exportedNames(program: ts.Program, file: string): string[] {
+interface TypesView {
+    /** The declaration file TypeScript resolves the subpath to, "/"-separated. */
+    resolved: string | undefined;
+    /** Every exported name, values and types. */
+    names: string[];
+    /** The exported names that are values at run time. */
+    values: string[];
+}
+
+/** Whether an exported symbol is a value at run time: not a type, nor exported as a type only. */
+function isValue(checker: ts.TypeChecker, entry: ts.Symbol): boolean {
+    const target = entry.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(entry) : entry;
+    const typeOnly = entry.declarations?.some(
+        (declaration) =>
+            ts.isExportSpecifier(declaration) &&
+            (declaration.isTypeOnly || declaration.parent.parent.isTypeOnly),
+    );
+    return (target.flags & ts.SymbolFlags.Value) !== 0 && !typeOnly;
+}
+
+/** The subpaths of one runtime, resolved from a consumer module; problems pushed to `problems`. */
+function runtimeView(runtime: Runtime, problems: string[]): Map<string, TypesView> {
+    const subpaths = specRows()
+        .filter((row) => runtimeOf(row.layer) === runtime)
+        .map((row) => row.subpath);
+    const file = join(CONSUMER, `${runtime}.ts`);
+    const imports = subpaths.map((subpath, index) => `import * as s${index} from "${subpath}";\n`);
+    writeFileSync(
+        file,
+        `${imports.join("")}export { ${subpaths.map((_, index) => `s${index}`).join(", ")} };\n`,
+    );
+    const options: ts.CompilerOptions = {
+        strict: true,
+        noEmit: true,
+        skipLibCheck: false,
+        target: ts.ScriptTarget.ES2022,
+        module: ts.ModuleKind.NodeNext,
+        moduleResolution: ts.ModuleResolutionKind.NodeNext,
+        lib: RUNTIMES[runtime].lib,
+        types: RUNTIMES[runtime].types,
+    };
+    const program = ts.createProgram([file], options);
     const checker = program.getTypeChecker();
     const source = program.getSourceFile(file)!;
-    const symbol = checker.getSymbolAtLocation(source);
-    if (!symbol) return [];
-    return checker
-        .getExportsOfModule(symbol)
-        .map((entry) => entry.name)
-        .sort(byCodeUnit);
+    // The consumer module and every declaration file of the package it reaches compile cleanly.
+    const checked = program
+        .getSourceFiles()
+        .filter(
+            (sourceFile) =>
+                sourceFile === source ||
+                slash(sourceFile.fileName).startsWith(`${slash(INSTALLED)}/`),
+        );
+    for (const sourceFile of checked) {
+        for (const diagnostic of [
+            ...program.getSyntacticDiagnostics(sourceFile),
+            ...program.getSemanticDiagnostics(sourceFile),
+        ]) {
+            const text = ts.flattenDiagnosticMessageText(diagnostic.messageText, "\n");
+            problems.push(`${runtime}: ${slash(relative(CONSUMER, sourceFile.fileName))}: ${text}`);
+        }
+    }
+    const views = new Map<string, TypesView>();
+    for (const statement of source.statements) {
+        if (!ts.isImportDeclaration(statement)) continue;
+        const subpath = (statement.moduleSpecifier as ts.StringLiteral).text;
+        const symbol = checker.getSymbolAtLocation(statement.moduleSpecifier);
+        const exported = symbol ? checker.getExportsOfModule(symbol) : [];
+        views.set(subpath, {
+            resolved: ts.resolveModuleName(subpath, file, options, ts.sys).resolvedModule
+                ?.resolvedFileName,
+            names: exported.map((entry) => entry.name).sort(byCodeUnit),
+            values: exported
+                .filter((entry) => isValue(checker, entry))
+                .map((entry) => entry.name)
+                .sort(byCodeUnit),
+        });
+    }
+    return views;
+}
+
+/** Every subpath with types, resolved by TypeScript as a consumer of its runtime compiles it. */
+let typesView: { views: Map<string, TypesView>; problems: string[] } | undefined;
+
+function typescriptView(): { views: Map<string, TypesView>; problems: string[] } {
+    if (typesView) return typesView;
+    const problems: string[] = [];
+    const views = new Map<string, TypesView>();
+    for (const runtime of Object.keys(RUNTIMES) as Runtime[]) {
+        for (const [subpath, view] of runtimeView(runtime, problems)) views.set(subpath, view);
+    }
+    typesView = { views, problems };
+    return typesView;
+}
+
+// --- Node -----------------------------------------------------------------------------------
+
+/** Imports every subpath in a Node process of the consumer project: its URL and value names. */
+function nodeView(subpaths: readonly string[]): Record<string, { url: string; names: string[] }> {
+    const script = join(CONSUMER, "resolve-subpaths.mjs");
+    writeFileSync(
+        script,
+        [
+            "const view = {};",
+            "for (const subpath of JSON.parse(process.argv[2])) {",
+            "    const url = import.meta.resolve(subpath);",
+            '    const names = url.endsWith(".css") ? [] : Object.keys(await import(subpath));',
+            "    view[subpath] = { url, names };",
+            "}",
+            "process.stdout.write(JSON.stringify(view));",
+            "",
+        ].join("\n"),
+    );
+    const output = execFileSync(process.execPath, [script, JSON.stringify(subpaths)], {
+        cwd: CONSUMER,
+        encoding: "utf8",
+    });
+    return JSON.parse(output) as Record<string, { url: string; names: string[] }>;
 }
 
 describe("API surface", () => {
-    const keys = Object.keys(manifest.exports);
-
-    it("lists exactly the subpaths of SPEC §4", () => {
+    it("lists exactly the subpaths of SPEC §4, as the installed package declares them", () => {
         expect(keys.map(subpathOf)).toEqual(Object.keys(API));
-        expect(keys.map(subpathOf)).toEqual(specSubpaths());
+        expect(keys.map(subpathOf)).toEqual(specRows().map((row) => row.subpath));
+        expect(installed.exports).toEqual(manifest.exports);
     });
 
-    it("resolves every subpath to files in dist/", () => {
+    it("packs only dist/, LICENSE, THIRD_PARTY_NOTICES.md, README.md and package.json", () => {
+        const { files } = pack(ROOT, ["--dry-run"]);
+        const top = new Set(files.map((path) => slash(path).split("/")[0]));
+        expect([...top].sort(byCodeUnit)).toEqual([
+            "LICENSE",
+            "README.md",
+            "THIRD_PARTY_NOTICES.md",
+            "dist",
+            "package.json",
+        ]);
+        expect(files).toContain("dist/styles.css");
+    }, 60_000);
+
+    it("installs every subpath's files from the tarball, under dist/", () => {
         for (const key of keys) {
-            const target = manifest.exports[key]!;
-            const files = typeof target === "string" ? [target] : [target.types, target.default];
-            for (const file of files) {
-                expect(file.startsWith("./dist/"), file).toBe(true);
-                expect(existsSync(join(ROOT, file)), file).toBe(true);
+            for (const kind of ["types", "default"] as const) {
+                const file = installedFile(key, kind);
+                if (file === null) continue;
+                expect(slash(relative(INSTALLED, file)).startsWith("dist/"), file).toBe(true);
+                expect(existsSync(file), file).toBe(true);
             }
         }
     });
 
-    it("exports exactly the listed names from each subpath", () => {
-        const typesOf = (key: string) => {
-            const target = manifest.exports[key]!;
-            return typeof target === "string" ? null : join(ROOT, target.types);
-        };
-        const program = declarationProgram(
-            keys.map(typesOf).filter((file): file is string => file !== null),
-        );
+    it("resolves every subpath and name through TypeScript from the consumer, types included", () => {
+        const { views, problems } = typescriptView();
+        expect(problems).toEqual([]);
         for (const key of keys) {
-            const file = typesOf(key);
-            const names = file === null ? [] : exportedNames(program, file);
-            expect(names, subpathOf(key)).toEqual([...API[subpathOf(key)]!].sort(byCodeUnit));
+            const subpath = subpathOf(key);
+            const types = installedFile(key, "types");
+            if (types === null) {
+                expect(views.has(subpath), subpath).toBe(false);
+                continue;
+            }
+            const view = views.get(subpath);
+            expect(view?.resolved, subpath).toBe(slash(types));
+            expect(view?.names, subpath).toEqual([...API[subpath]!].sort(byCodeUnit));
         }
-    }, 60_000);
+    }, 120_000);
+
+    it("resolves every subpath and value name through Node from the consumer", () => {
+        const { views } = typescriptView();
+        const resolved = nodeView(keys.map(subpathOf));
+        for (const key of keys) {
+            const subpath = subpathOf(key);
+            expect(resolved[subpath]?.url, subpath).toBe(
+                pathToFileURL(installedFile(key, "default")!).href,
+            );
+            const names = [...(resolved[subpath]?.names ?? [])].sort(byCodeUnit);
+            expect(names, subpath).toEqual(views.get(subpath)?.values ?? []);
+        }
+        expect(resolved["@ngne/editor-ui/styles/check"]?.names).toEqual(["checkStylesheets"]);
+        expect(resolved["@ngne/editor-ui"]?.names).toContain("createEditorUi");
+    }, 120_000);
+
+    it("ships styles.css with every stylesheet under src/, each whole", () => {
+        const entry = readFileSync(installedFile("./styles.css", "default")!, "utf8");
+        const stylesheets = readdirSync(join(ROOT, "src"), { recursive: true, withFileTypes: true })
+            .filter((file) => file.isFile() && file.name.endsWith(".css"))
+            .map((file) => slash(relative(ROOT, join(file.parentPath, file.name))));
+        expect(stylesheets.length).toBeGreaterThan(10);
+        for (const path of stylesheets) {
+            expect(entry, path).toContain(`/* ${path} */\n`);
+            expect(entry, path).toContain(readFileSync(join(ROOT, path), "utf8").trimEnd());
+        }
+    });
 });
