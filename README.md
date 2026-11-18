@@ -98,8 +98,12 @@ export const appInfo: AppInfo = {
     changelogUrl: `${REPOSITORY_URL}/blob/main/CHANGELOG.md`,
 };
 
-// src/app/pwa/sw.ts
+// src/app/pwa/sw.ts: vite-plugin-pwa (`injectManifest`) builds it into sw.js and puts the
+// build's files where `self.__WB_MANIFEST` stands; the id is the one createEditorUi takes.
 import { installServiceWorker } from "@ngne/editor-ui/pwa/worker";
+import type { PrecacheEntry } from "@ngne/editor-ui/pwa/worker";
+
+declare const self: { __WB_MANIFEST: PrecacheEntry[] };
 installServiceWorker({ id: "ngne-sprite-editor", manifest: self.__WB_MANIFEST });
 ```
 

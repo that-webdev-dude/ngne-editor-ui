@@ -1,0 +1,22 @@
+import { toast } from "../messages/toast.js";
+import type { ToastService } from "../messages/toast.js";
+import type { AppUpdates } from "./updates.js";
+
+/** The update toast's message (SPEC §10). */
+export const UPDATE_MESSAGE = "A new version of the editor is ready.";
+
+/**
+ * Shows the update toast whenever a new version becomes ready (SPEC §10, DESIGN §4): an
+ * information toast with Reload, which stays until the user reloads or dismisses it.
+ * Dismissed, it comes back with the next page (the new version still waits). Returns the
+ * function that stops it.
+ */
+export function showUpdateToast(updates: AppUpdates, service: ToastService = toast): () => void {
+    const offer = () => {
+        service.info(UPDATE_MESSAGE, { action: { label: "Reload", run: () => updates.apply() } });
+    };
+    if (updates.store.getState().ready) offer();
+    return updates.store.subscribe((state, previous) => {
+        if (state.ready && !previous.ready) offer();
+    });
+}
