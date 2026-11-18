@@ -153,4 +153,27 @@ describe("useCommands tracker", () => {
         expect(ran).toBe(1);
         expect(command!.shortcuts).toEqual(registry.get("edit.go")!.shortcuts);
     });
+
+    it("runs what the registry's command runs at the call, not when the copy was handed out", async () => {
+        const registry = createCommandRegistry({ menus: ["Edit"] });
+        const calls: string[] = [];
+        registry.register({
+            id: "edit.go",
+            title: "Go",
+            run: () => void calls.push("run"),
+            release: () => void calls.push("release"),
+        });
+        const tracker = createCommandTracker(registry);
+        const [copy] = tracker.commands();
+        // An editor wraps the registry's command after the copy was handed out.
+        const command = registry.get("edit.go")!;
+        const { run } = command;
+        command.run = () => {
+            calls.push("wrapped run");
+            return run();
+        };
+        await copy!.run();
+        copy!.release?.();
+        expect(calls).toEqual(["wrapped run", "run", "release"]);
+    });
 });

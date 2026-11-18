@@ -64,7 +64,11 @@ export function createCommandTracker<Menu extends string, Context extends string
         }
         return read;
     };
-    /** One recording copy per command, so a command keeps its identity across renders. */
+    /**
+     * One recording copy per command, so a command keeps its identity across renders. It runs
+     * through the registry's command at each call: what that command's `run` is then is what
+     * the palette or a menu runs, as a key does.
+     */
     const copies = new WeakMap<Cmd, Cmd>();
     const track = (command: Cmd): Cmd => {
         let copy = copies.get(command);
@@ -73,6 +77,7 @@ export function createCommandTracker<Menu extends string, Context extends string
                 ...command,
                 enabled: () => (entry(command).enabled = command.enabled()),
                 title: () => (entry(command).title = command.title()),
+                run: () => command.run(),
             };
             copies.set(command, copy);
         }
