@@ -148,6 +148,43 @@ test("options that do not fit at 1280 px move, from the last back, into the over
     expect(errors).toEqual([]);
 });
 
+test("the copies the bar measures carry no option hook and nothing is inert: an editor's locators find each shown option once", async ({
+    page,
+}) => {
+    const errors = uncaughtErrors(page);
+    await selectAirbrush(page);
+    const shown = await optionKeys(inBar(page));
+    expect(shown.length).toBeLessThan(AIRBRUSH.length);
+    // Every option hook in the bar is a shown option's, each once.
+    expect(await optionKeys(bar(page).locator("[data-tool-option]"))).toEqual(shown);
+    for (const key of shown) {
+        await expect(bar(page).locator(`[data-tool-option="${key}"]`)).toHaveCount(1);
+    }
+    // Nothing on the page is inert while no modal layer is open (DESIGN §9).
+    await expect(page.locator("[inert]")).toHaveCount(0);
+    expect(errors).toEqual([]);
+});
+
+test("the copies the bar measures lie outside every region: each control in the bar is a shown one", async ({
+    page,
+}) => {
+    const errors = uncaughtErrors(page);
+    await selectAirbrush(page);
+    expect((await optionKeys(inBar(page))).length).toBeLessThan(AIRBRUSH.length);
+    await expect(page.locator(".context-bar__measure")).toHaveCount(1);
+    await expect(page.locator("[data-region] .context-bar__measure")).toHaveCount(0);
+    // An editor's query for the bar's controls finds no hidden copy.
+    const hidden = await bar(page)
+        .locator("button, input, [role='combobox']")
+        .evaluateAll(
+            (controls) =>
+                controls.filter((control) => !control.checkVisibility({ visibilityProperty: true }))
+                    .length,
+        );
+    expect(hidden).toBe(0);
+    expect(errors).toEqual([]);
+});
+
 test("the readouts slot renders after the options and stays out of the overflow menu", async ({
     page,
 }) => {

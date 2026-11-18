@@ -1,6 +1,7 @@
 import { Ellipsis } from "lucide-react";
 import { useCallback, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { ReactNode } from "react";
+import { createPortal } from "react-dom";
 import {
     shownContextBarContent,
     subscribeContextBarContent,
@@ -36,11 +37,13 @@ interface OptionFieldProps {
     option: ToolOptionSpec;
     value: ToolOptionValue;
     onChange(value: ToolOptionValue): void;
+    /** A copy that is only measured: it carries no `data-tool-option`, so the page has one. */
+    measured?: boolean;
 }
 
 /** One option of the active tool, as the control its kind calls for (DESIGN §4). */
-function OptionField({ option, value, onChange }: Readonly<OptionFieldProps>) {
-    const data = { "data-tool-option": option.key };
+function OptionField({ option, value, onChange, measured = false }: Readonly<OptionFieldProps>) {
+    const data = measured ? {} : { "data-tool-option": option.key };
     switch (optionControl(option)) {
         case "number": {
             const { min, max, step, unit } = option as Extract<ToolOptionSpec, { kind: "number" }>;
@@ -194,21 +197,31 @@ function ToolOptions<Tool extends ToolBase>({
                     {readouts}
                 </span>
             ) : null}
-            {/* Every option at its natural width, unseen and inert, for the fit above. */}
-            <div className="context-bar__measure" ref={measure} aria-hidden="true" inert>
-                <div className="context-bar__measure-row">
-                    {tool.options.map((option) => (
-                        <span key={option.key} data-measure-option={option.key}>
-                            <OptionField
-                                option={option}
-                                value={values[option.key] ?? option.default}
-                                onChange={() => undefined}
-                            />
-                        </span>
-                    ))}
-                    <span className="context-bar__measure-trigger" data-measure-trigger="" />
-                </div>
-            </div>
+            {/*
+             * Every option at its natural width, for the fit above: unseen, so neither
+             * focusable nor under the pointer (visibility), and out of the accessibility tree.
+             * Not `inert`, which the page keeps for the layers outside a modal one (DESIGN §9).
+             * On the page's body, outside every region: an editor's queries for the controls
+             * of a region find the shown ones only.
+             */}
+            {createPortal(
+                <div className="context-bar__measure" ref={measure} aria-hidden="true">
+                    <div className="context-bar__measure-row">
+                        {tool.options.map((option) => (
+                            <span key={option.key} data-measure-option={option.key}>
+                                <OptionField
+                                    option={option}
+                                    value={values[option.key] ?? option.default}
+                                    onChange={() => undefined}
+                                    measured
+                                />
+                            </span>
+                        ))}
+                        <span className="context-bar__measure-trigger" data-measure-trigger="" />
+                    </div>
+                </div>,
+                document.body,
+            )}
         </div>
     );
 }
