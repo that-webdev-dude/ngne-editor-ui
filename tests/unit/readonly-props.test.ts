@@ -5,17 +5,25 @@ import ts from "typescript";
 import { describe, expect, it } from "vitest";
 
 // Every exported React component under src/ui declares its props `Readonly` (BRIEF D14, the
-// tilemap editor's fix): the first parameter of an exported component, a function whose name
-// starts with a capital, is typed `Readonly<…>`, and so is the props type an exported class
-// component gives `Component`. A component that takes no props passes.
+// tilemap editor's fix), and so does every one of the gallery site (gallery/), whose entries
+// are passed to the gallery as an app's are (SPEC §12): the first parameter of an exported
+// component, a function whose name starts with a capital, is typed `Readonly<…>`, and so is the
+// props type an exported class component gives `Component`. A component that takes no props
+// passes.
 
 const ROOT = fileURLToPath(new URL("../../", import.meta.url));
 
-/** The `.tsx` modules under src/ui, relative to the repository, "/"-separated. */
-function componentModules(): string[] {
-    return readdirSync(join(ROOT, "src", "ui"), { recursive: true, withFileTypes: true })
+/** The `.tsx` modules under `dir`, relative to the repository, "/"-separated. */
+function tsxModules(dir: string): string[] {
+    return readdirSync(join(ROOT, dir), { recursive: true, withFileTypes: true })
         .filter((entry) => entry.isFile() && entry.name.endsWith(".tsx"))
-        .map((entry) => relative(ROOT, join(entry.parentPath, entry.name)).replaceAll("\\", "/"));
+        .map((entry) => relative(ROOT, join(entry.parentPath, entry.name)).replaceAll("\\", "/"))
+        .filter((file) => !file.includes("/dist/"));
+}
+
+/** The `.tsx` modules under src/ui and of the gallery site. */
+function componentModules(): string[] {
+    return [...tsxModules(join("src", "ui")), ...tsxModules("gallery")];
 }
 
 const isExported = (node: ts.Node) =>
@@ -99,11 +107,16 @@ function mutableProps(file: string, text: string): string[] {
 describe("Readonly props", () => {
     const modules = componentModules();
 
-    it("finds the components under src/ui", () => {
+    it("finds the components under src/ui and of the gallery site", () => {
         expect(modules).toEqual(
             expect.arrayContaining([
+                "gallery/DemoEditorEntry.tsx",
+                "gallery/demo/DemoMenuCentre.tsx",
+                "gallery/main.tsx",
                 "src/ui/commands/Chord.tsx",
                 "src/ui/gallery/Gallery.tsx",
+                "src/ui/gallery/entries/LicencesEntry.tsx",
+                "src/ui/gallery/entries/ShellEntry.tsx",
                 "src/ui/messages/DialogHost.tsx",
                 "src/ui/messages/RegionBoundary.tsx",
                 "src/ui/primitives/Button.tsx",
@@ -112,7 +125,7 @@ describe("Readonly props", () => {
         );
     });
 
-    it("are declared by every exported component under src/ui", () => {
+    it("are declared by every exported component under src/ui and of the gallery site", () => {
         const found = modules.flatMap((file) =>
             mutableProps(file, readFileSync(join(ROOT, file), "utf8")),
         );

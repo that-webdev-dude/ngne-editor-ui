@@ -1,12 +1,14 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { AxeBuilder } from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
+import { audit, entry, horizontalOverflow } from "./gallery-support.ts";
 
 // The gallery (SPEC §12) as Pages serves it: the frame in both themes, the Tokens entry with
-// every DESIGN §3.1 colour at its value, at 1280×720 and at 125% browser zoom (DESIGN §9),
-// with no WCAG 2.1 AA violation; and the link to its licences file (SPEC §11).
+// every DESIGN §3.1 colour at its value, and every entry, the package's and then the site's
+// own (the demo editor), at 1280×720 and at 125% browser zoom (DESIGN §9), with no WCAG 2.1 AA
+// violation; the navigation to each entry by its id; the shell frame's slots, the licences
+// dialog and the window-too-small notice; and the link to its licences file (SPEC §11).
 
 type Theme = "dark" | "light";
 const THEMES: readonly Theme[] = ["dark", "light"];
@@ -57,52 +59,6 @@ async function chooseTheme(page: Page, theme: Theme) {
     await radio.check();
     await expect(radio).toBeChecked();
     await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
-}
-
-// --- WCAG 2.1 AA --------------------------------------------------------------------------
-
-const AA_TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"];
-
-/** Whether any part of the element lies inside the visible box of its scrolling ancestors. */
-function isOnScreen(page: Page, selector: string): Promise<boolean> {
-    return page.locator(selector).evaluate((element) => {
-        let { left, top, right, bottom } = element.getBoundingClientRect();
-        for (let parent = element.parentElement; parent; parent = parent.parentElement) {
-            const style = getComputedStyle(parent);
-            if (style.overflowX === "visible" && style.overflowY === "visible") continue;
-            const clip = parent.getBoundingClientRect();
-            left = Math.max(left, clip.left);
-            top = Math.max(top, clip.top);
-            right = Math.min(right, clip.right);
-            bottom = Math.min(bottom, clip.bottom);
-        }
-        return right > left && bottom > top;
-    });
-}
-
-/**
- * Runs axe (WCAG 2.1 A and AA) on the page and returns the violations together with what the
- * contrast rule covered: nodes it judged, and nodes on screen it could not decide on (those
- * would hide a failure, so the tests accept none).
- */
-async function audit(page: Page) {
-    const results = await new AxeBuilder({ page }).withTags(AA_TAGS).analyze();
-    const contrast = (list: typeof results.passes) =>
-        list.filter((rule) => rule.id === "color-contrast").flatMap((rule) => rule.nodes);
-    const contrastUndecided = [];
-    for (const node of contrast(results.incomplete)) {
-        const selector = node.target.join(" ");
-        if (await isOnScreen(page, selector)) contrastUndecided.push(selector);
-    }
-    return {
-        violations: results.violations.flatMap((rule) =>
-            rule.nodes.map(
-                (node) => `${rule.id}: ${node.target.join(" ")} — ${node.failureSummary}`,
-            ),
-        ),
-        contrastChecked: contrast(results.passes).length,
-        contrastUndecided,
-    };
 }
 
 // --- The Tokens entry ----------------------------------------------------------------------
@@ -245,4 +201,251 @@ test("the licences.txt link opens the file", async ({ page }) => {
     expect(text.startsWith("NGNE Editor UI gallery: open source licences")).toBe(true);
     expect(text).toContain("Copyright (c) 2026 Fabio Barracano");
     expect(text).toMatch(/^react \d+\.\d+\.\d+ \(MIT\)$/m);
+});
+
+// --- Every entry ---------------------------------------------------------------------------
+
+/** The package's entries, in the gallery's order (src/ui/gallery/entries.ts). */
+const PACKAGE_ENTRIES = [
+    "tokens",
+    "button",
+    "icon-button",
+    "tool-button",
+    "toggle",
+    "segmented",
+    "number-field",
+    "slider",
+    "select",
+    "popover",
+    "closing-popover",
+    "dialog",
+    "context-menu",
+    "tooltip",
+    "splitter",
+    "icon",
+    "toast",
+    "dialog-host",
+    "discard-changes",
+    "webgpu-required",
+    "window-too-small",
+    "region-boundary",
+    "command-refresh",
+    "command-palette",
+    "shortcut-sheet",
+    "about",
+    "licences",
+    "tab-strip",
+    "app-shell",
+] as const;
+
+/** The site's own entries, which it passes to the gallery as an app does. */
+const SITE_ENTRIES = ["demo-editor"] as const;
+
+const ENTRIES: readonly string[] = [...PACKAGE_ENTRIES, ...SITE_ENTRIES];
+
+/** The demo editor's page in the site's entry. */
+const demoFrame = (page: Page) => page.frameLocator('iframe[title="NGNE Demo Editor"]');
+
+/** The ids of the sections on the page, in the page's order. */
+const sectionIds = (page: Page) =>
+    page
+        .locator("section[data-entry]")
+        .evaluateAll((sections) => sections.map((section) => section.getAttribute("data-entry")));
+
+for (const theme of THEMES) {
+    for (const window of WINDOWS) {
+        for (const id of ENTRIES) {
+            test(`the ${id} entry renders in the ${theme} theme at ${window.name} with no axe violation`, async ({
+                page,
+            }) => {
+                await page.setViewportSize({ width: window.width, height: window.height });
+                await openGallery(page);
+                await chooseTheme(page, theme);
+
+                const section = entry(page, id);
+                await section.scrollIntoViewIfNeeded();
+                await expect(section).toBeInViewport();
+                await expect(page.locator(`#gallery-entry-${id}`)).toBeVisible();
+                if (id === "demo-editor") {
+                    // The demo editor, in the gallery's theme, with its shell and tab strip.
+                    const demo = demoFrame(page);
+                    await expect(demo.getByRole("menubar", { name: "Main menu" })).toBeVisible();
+                    await expect(demo.locator("html")).toHaveAttribute("data-theme", theme);
+                    await expect(
+                        demo.getByRole("tablist", { name: "Documents" }).getByRole("tab"),
+                    ).toHaveCount(3);
+                    await expect(demo.locator(".notice")).toHaveCount(0);
+                }
+
+                // Nothing scrolls sideways or reaches past the page's right edge.
+                expect(await horizontalOverflow(page)).toEqual({ page: 0, gallery: 0, outside: 0 });
+
+                // WCAG 2.1 AA on the entry, frames included, the contrast rule judging its text.
+                const result = await audit(page, `section[data-entry="${id}"]`);
+                expect(result.violations).toEqual([]);
+                expect(result.contrastUndecided).toEqual([]);
+                expect(result.contrastChecked).toBeGreaterThan(0);
+                // The demo editor's page is audited in its frame, not only the entry around it.
+                if (id === "demo-editor") expect(result.contrastChecked).toBeGreaterThan(20);
+            });
+        }
+    }
+}
+
+// --- Navigation and app entries --------------------------------------------------------------
+
+test("the site's entries render after the package's, in a group of their own", async ({ page }) => {
+    await openGallery(page);
+    expect(await sectionIds(page)).toEqual(ENTRIES);
+
+    const nav = page.getByRole("navigation", { name: "Entries" });
+    expect(
+        await nav
+            .locator("[data-group]")
+            .evaluateAll((groups) => groups.map((group) => group.getAttribute("data-group"))),
+    ).toEqual([
+        "Tokens",
+        "Primitives",
+        "Messages",
+        "Commands",
+        "About and licences",
+        "Shell",
+        "App",
+    ]);
+    expect(
+        await nav
+            .getByRole("link")
+            .evaluateAll((links) => links.map((link) => link.getAttribute("href"))),
+    ).toEqual(ENTRIES.map((id) => `#${id}`));
+    await expect(nav.getByRole("list", { name: "App" }).getByRole("link")).toHaveText([
+        "Demo editor",
+    ]);
+});
+
+/** Waits until the section starts at the top of the gallery's scrolled area. */
+async function expectAtTop(page: Page, id: string) {
+    const top = () =>
+        page.evaluate(
+            (entryId) =>
+                document.getElementById(entryId)!.getBoundingClientRect().top -
+                document.querySelector(".gallery")!.getBoundingClientRect().top,
+            id,
+        );
+    await expect.poll(async () => Math.abs(await top()), { message: id }).toBeLessThanOrEqual(1);
+}
+
+test("the navigation and the address open an entry by its id", async ({ page }) => {
+    await openGallery(page);
+    const nav = page.getByRole("navigation", { name: "Entries" });
+
+    await nav.getByRole("link", { name: "Licences dialog", exact: true }).click();
+    await expect(page).toHaveURL(/\/ngne-editor-ui\/#licences$/);
+    await expectAtTop(page, "licences");
+
+    // A new fragment in the address, as the browser's history gives it.
+    await page.evaluate(() => {
+        window.location.hash = "window-too-small";
+    });
+    await expectAtTop(page, "window-too-small");
+
+    // The gallery opened at an entry's address.
+    await page.goto("about:blank");
+    await page.goto("./#app-shell");
+    await expect(page.getByRole("heading", { name: "Interface gallery", level: 1 })).toBeVisible();
+    await expectAtTop(page, "app-shell");
+});
+
+// --- The shell frame, licences and window-too-small entries ---------------------------------
+
+test("the shell frame shows each slot in its region, and noDocument in the viewport's place", async ({
+    page,
+}) => {
+    await openGallery(page);
+    const shell = entry(page, "app-shell");
+    await shell.scrollIntoViewIfNeeded();
+    const slot = (name: string) => shell.locator(`[data-slot="${name}"]`);
+    const inRegion = async (name: string, region: string) => {
+        const box = await slot(name).boundingBox();
+        const frame = await shell.locator(region).boundingBox();
+        expect(box, name).not.toBeNull();
+        expect(frame, region).not.toBeNull();
+        expect(box!.x, name).toBeGreaterThanOrEqual(frame!.x);
+        expect(box!.y, name).toBeGreaterThanOrEqual(frame!.y);
+        expect(box!.x + box!.width, name).toBeLessThanOrEqual(frame!.x + frame!.width + 0.5);
+        expect(box!.y + box!.height, name).toBeLessThanOrEqual(frame!.y + frame!.height + 0.5);
+    };
+
+    await expect(
+        shell.getByRole("menubar", { name: "Main menu" }).getByRole("menuitem"),
+    ).toHaveText(["File", "Edit", "View", "Help"]);
+    for (const [name, region] of [
+        ["menuCentre", ".shell-menubar__centre"],
+        ["railFooter", ".shell-rail"],
+        ["viewport", '[data-region="viewport"]'],
+        ["bottom", '[data-region="bottom"]'],
+    ] as const) {
+        await expect(slot(name), name).toHaveText(name);
+        await inRegion(name, region);
+    }
+    await expect(slot("noDocument")).toHaveCount(0);
+
+    // No document: its content takes the viewport's place; the bottom region stays, empty.
+    const toggle = shell.getByRole("button", { name: "No document" });
+    await toggle.click();
+    await expect(toggle).toHaveAttribute("aria-pressed", "true");
+    await expect(slot("noDocument")).toHaveText("noDocument");
+    await inRegion("noDocument", '[data-region="viewport"]');
+    await expect(slot("viewport")).toHaveCount(0);
+    await expect(slot("bottom")).toHaveCount(0);
+    await expect(shell.locator('[data-region="bottom"]')).toBeVisible();
+
+    // Its View menu opens the licences dialog through the gallery's dialog host.
+    await shell.getByRole("menuitem", { name: "View", exact: true }).click();
+    await page.getByRole("menuitem", { name: "Open Source Licences…" }).click();
+    const dialog = page.getByRole("dialog", { name: "Open Source Licences" });
+    await expect(dialog.getByRole("region", { name: "Licence text" })).toContainText(
+        "NGNE Editor UI gallery: open source licences",
+    );
+    await page.keyboard.press("Escape");
+    await expect(dialog).toHaveCount(0);
+});
+
+test("the licences entry shows the gallery's licences.txt, and links it when it cannot be read", async ({
+    page,
+}) => {
+    await openGallery(page);
+    const licences = entry(page, "licences");
+    const dialog = page.getByRole("dialog", { name: "Open Source Licences" });
+    const closed = page.locator('[data-readout="licences-closed"]');
+
+    await licences.getByRole("button", { name: "Open Source Licences…" }).click();
+    await expect(dialog.getByRole("region", { name: "Licence text" })).toContainText(
+        "NGNE Editor UI gallery: open source licences",
+    );
+    expect((await audit(page)).violations).toEqual([]);
+    await page.keyboard.press("Escape");
+    await expect(dialog).toHaveCount(0);
+    await expect(closed).toHaveText("Closed: 1");
+
+    await licences.getByRole("button", { name: "Open with the file unreadable" }).click();
+    await expect(dialog).toContainText(
+        "The licences file of NGNE Gallery Editor could not be loaded.",
+    );
+    await expect(dialog.getByRole("link")).toHaveAttribute(
+        "href",
+        /\/ngne-editor-ui\/licences\.txt$/,
+    );
+    await expect(dialog.getByRole("region", { name: "Licence text" })).toHaveCount(0);
+    await page.keyboard.press("Escape");
+    await expect(dialog).toHaveCount(0);
+    await expect(closed).toHaveText("Closed: 2");
+});
+
+test("the window-too-small entry names the minimum and the window's size", async ({ page }) => {
+    await openGallery(page);
+    const notice = entry(page, "window-too-small").locator('[data-notice="window-too-small"]');
+    await expect(notice.getByRole("heading", { name: "Window too small" })).toBeVisible();
+    await expect(notice).toContainText(
+        "The editor needs a window of at least 1280 × 720 CSS pixels; this one is 1152 × 648.",
+    );
 });

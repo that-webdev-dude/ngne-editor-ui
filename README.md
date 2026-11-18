@@ -139,7 +139,36 @@ npm run gallery
 
 The development server serves it at `http://localhost:5173/ngne-editor-ui/`. It runs the
 built package, so a change under `src/` shows after `npm run build`. `npm run build:gallery`
-writes the Pages site to `gallery/dist/`, with `licences.txt` beside `index.html`.
+writes the Pages site to `gallery/dist/`, with `licences.txt` beside `index.html`. The site
+shows the package's entries, then its own: the demo editor (`gallery/demo/`), also served on
+its own at `demo/`. A link `#<entry id>` opens the gallery at that entry.
+
+### Mounting the gallery with app entries
+
+An editor mounts the gallery on a development page of its own and passes its entries, which
+follow the package's in a group of their own. Each entry has an id, unique in the gallery
+(the section's anchor), a title and a component; the gallery shows each one in the theme of
+its switch, which `useGalleryTheme()` reads.
+
+```tsx
+import "@ngne/editor-ui/styles.css";
+import { Gallery } from "@ngne/editor-ui/gallery";
+import type { GalleryEntry } from "@ngne/editor-ui/gallery";
+import { createRoot } from "react-dom/client";
+import { LayerRow } from "./ui/layers/LayerRow";
+
+const entries: readonly GalleryEntry[] = [
+    { id: "layer-row", title: "Layer row", Component: () => <LayerRow name="Background" /> },
+];
+
+createRoot(document.getElementById("root")!).render(<Gallery entries={entries} />);
+```
+
+The gallery mounts its own toasts and dialog host, which shows the package's entries'
+dialogs only: an app entry renders its own dialogs itself, and provides the editor UI
+instance its components read. An entry that needs the whole editor (its `UiRoot`, which sets
+the document's theme and installs its keys) shows it in a frame, as the site's demo editor
+entry does.
 
 ## Develop
 

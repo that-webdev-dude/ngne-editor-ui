@@ -1,6 +1,6 @@
 import { AxeBuilder } from "@axe-core/playwright";
 import { expect } from "@playwright/test";
-import type { Locator, Page } from "@playwright/test";
+import type { FrameLocator, Locator, Page } from "@playwright/test";
 
 // What the message and focus specs share on the gallery (SPEC §3, §12): opening it, the
 // themes and window sizes of DESIGN §9, keyboard focus, and the WCAG 2.1 AA audit.
@@ -61,9 +61,23 @@ export function uncaughtErrors(page: Page): string[] {
 
 const AA_TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"];
 
-/** Whether any part of the element lies inside the visible box of its scrolling ancestors. */
-function isOnScreen(page: Page, selector: string): Promise<boolean> {
-    return page.locator(selector).evaluate((element) => {
+/** A node axe names: one selector per frame from the page down, the last the node's own. */
+type AxeTarget = readonly (string | readonly string[])[];
+
+/** The element an axe target names, in the frame it names. */
+function located(page: Page, target: AxeTarget): Locator {
+    const selectors = target.map((part) => (typeof part === "string" ? part : part.join(" ")));
+    let scope: Page | FrameLocator = page;
+    for (const frame of selectors.slice(0, -1)) scope = scope.frameLocator(frame);
+    return scope.locator(selectors.at(-1)!);
+}
+
+/**
+ * Whether any part of the element lies inside the visible box of its scrolling ancestors, in
+ * its own frame's document.
+ */
+function isOnScreen(element: Locator): Promise<boolean> {
+    return element.evaluate((element) => {
         let { left, top, right, bottom } = element.getBoundingClientRect();
         for (let parent = element.parentElement; parent; parent = parent.parentElement) {
             const style = getComputedStyle(parent);
@@ -79,18 +93,23 @@ function isOnScreen(page: Page, selector: string): Promise<boolean> {
 }
 
 /**
- * Runs axe (WCAG 2.1 A and AA) on the page, or on the subtree under `scope`, and returns the
- * violations together with what the contrast rule covered: nodes it judged, and nodes on
- * screen it could not decide on (those would hide a failure, so the specs accept none).
+ * Runs axe (WCAG 2.1 A and AA) on the page, or on the subtree under `scope`, frames included,
+ * and returns the violations together with what the contrast rule covered: nodes it judged,
+ * and nodes on screen it could not decide on (those would hide a failure, so the specs accept
+ * none).
  */
 export async function audit(page: Page, scope?: string) {
     const builder = new AxeBuilder({ page }).withTags(AA_TAGS);
     const results = await (scope ? builder.include(scope) : builder).analyze();
     const contrast = (list: typeof results.passes) =>
         list.filter((rule) => rule.id === "color-contrast").flatMap((rule) => rule.nodes);
-    const undecided = contrast(results.incomplete).map((node) => node.target.join(" "));
-    const onScreen = await Promise.all(undecided.map((selector) => isOnScreen(page, selector)));
-    const contrastUndecided = undecided.filter((_, index) => onScreen[index]);
+    const undecided = contrast(results.incomplete).map((node) => node.target as AxeTarget);
+    const onScreen = await Promise.all(
+        undecided.map((target) => isOnScreen(located(page, target))),
+    );
+    const contrastUndecided = undecided
+        .filter((_, index) => onScreen[index])
+        .map((target) => target.join(" "));
     return {
         violations: results.violations.flatMap((rule) =>
             rule.nodes.map(

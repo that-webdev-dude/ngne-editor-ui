@@ -393,7 +393,7 @@ test.describe("keyboard operation", () => {
     test("splitter: arrows resize, Home and End reach the limits, Enter and double-click reset", async ({
         page,
     }) => {
-        const splitter = page.getByRole("separator", { name: "Resize pane" });
+        const splitter = entry(page, "splitter").getByRole("separator", { name: "Resize pane" });
         const width = readout(page, "split");
         await expect(splitter).toHaveAttribute("aria-orientation", "vertical");
         await expect(splitter).toHaveAttribute("aria-valuenow", "160");

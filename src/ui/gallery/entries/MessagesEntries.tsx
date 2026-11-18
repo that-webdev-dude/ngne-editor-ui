@@ -1,17 +1,17 @@
 import { DropdownMenu } from "radix-ui";
 import { useState } from "react";
 import type { ComponentType, ReactNode } from "react";
-import { collectCommandDialogs } from "../../../model/registries/dialogs.js";
 import { commandDialogs } from "../../messages/dialogRequests.js";
 import type { DialogRequestBase } from "../../messages/dialogRequests.js";
 import { commandDialog } from "../../messages/dialogRegistry.js";
-import type { CommandDialogModule, CommandDialogs } from "../../messages/dialogRegistry.js";
+import type { CommandDialogModule } from "../../messages/dialogRegistry.js";
 import { DiscardChangesDialog } from "../../messages/DiscardChangesDialog.js";
 import type { DiscardAction, DiscardChangesRequest } from "../../messages/DiscardChangesDialog.js";
 import { RegionBoundary } from "../../messages/RegionBoundary.js";
 import { toast } from "../../messages/toast.js";
 import { WebGpuRequired } from "../../messages/WebGpuRequired.js";
 import type { WebGpuRequiredProps } from "../../messages/WebGpuRequired.js";
+import { WindowTooSmall } from "../../messages/WindowTooSmall.js";
 import {
     Button,
     ContextMenu,
@@ -24,8 +24,9 @@ import type { GalleryEntry } from "../entry.js";
 
 // The message entries of the gallery (SPEC §6, §12; DESIGN §5, §7): toasts, the dialog host
 // with a fixture dialog and the discard question, both asked through the app's dialog
-// requests, the WebGPU-required notice and a region boundary. The frame mounts the toast
-// viewport and the dialog host over `GALLERY_DIALOGS`, as `UiRoot` does in an app.
+// requests, the WebGPU-required and window-too-small notices and a region boundary. The frame
+// mounts the toast viewport and the dialog host over `GALLERY_DIALOGS` (entries.ts), as
+// `UiRoot` does in an app.
 
 function Row({ children }: Readonly<{ children: ReactNode }>) {
     return <div className="gallery__row">{children}</div>;
@@ -89,7 +90,7 @@ function FailingDialog(): ReactNode {
 }
 
 /** The gallery's `*.dialog.tsx` module map, as an app's one glob line returns it. */
-const DIALOG_MODULES: Readonly<Record<string, CommandDialogModule>> = {
+export const MESSAGE_DIALOG_MODULES: Readonly<Record<string, CommandDialogModule>> = {
     "./gallery/messages.dialog.tsx": {
         commandDialogs: [
             commandDialog<CanvasSizeRequest>(
@@ -110,9 +111,6 @@ const DIALOG_MODULES: Readonly<Record<string, CommandDialogModule>> = {
         ],
     },
 };
-
-/** The dialogs the gallery's dialog host shows. */
-export const GALLERY_DIALOGS: CommandDialogs = collectCommandDialogs(DIALOG_MODULES);
 
 /** Asks through the app's requests, as a feature's typed function does (SPEC §6). */
 function ask<Request extends DialogRequestBase, Values>(
@@ -257,6 +255,18 @@ function WebGpuEntry() {
     );
 }
 
+/**
+ * The notice `AppShell` shows below 1280×720, for a window of 1152 × 648 (1440 × 810 at 125%
+ * zoom): the gallery's own window is at least the minimum.
+ */
+function WindowTooSmallEntry() {
+    return (
+        <div className="gallery__notice">
+            <WindowTooSmall width={1152} height={648} />
+        </div>
+    );
+}
+
 function Fragile({ broken, children }: Readonly<{ broken: boolean; children: ReactNode }>) {
     if (broken) throw new Error("Gallery: the demo region was asked to fail.");
     return <span className="gallery__fragile">{children}</span>;
@@ -304,5 +314,6 @@ export const messageEntries: readonly GalleryEntry[] = [
     entry("dialog-host", "Dialog host", DialogHostEntry),
     entry("discard-changes", "Discard changes", DiscardEntry),
     entry("webgpu-required", "WebGPU required", WebGpuEntry),
+    entry("window-too-small", "Window too small", WindowTooSmallEntry),
     entry("region-boundary", "Region boundary", RegionBoundaryEntry),
 ];

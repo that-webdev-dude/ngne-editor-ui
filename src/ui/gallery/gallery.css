@@ -1,5 +1,5 @@
-/* The gallery (SPEC §12): its frame, the Tokens entry, then the primitive entries. Tokens
-   only (SPEC §9.2). */
+/* The gallery (SPEC §12): its frame and navigation, then the entries' rules. Tokens only
+   (SPEC §9.2). */
 .gallery {
     height: 100%;
     overflow-y: auto;
@@ -51,6 +51,42 @@
     display: inline-flex;
     align-items: center;
     height: var(--control-height);
+    color: var(--text);
+    text-decoration: underline;
+    text-underline-offset: var(--space-2);
+}
+
+/* Navigation: each group's title, then links to its entries by id. */
+.gallery__nav {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    padding: var(--space-8) var(--space-16);
+    border-bottom: var(--border-width) solid var(--border);
+}
+
+.gallery__group {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-12);
+    min-width: 0;
+}
+
+.gallery__group-title {
+    flex: none;
+    width: 120px;
+    color: var(--text-muted);
+}
+
+.gallery__links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-4) var(--space-12);
+    min-width: 0;
+    list-style: none;
+}
+
+.gallery__nav-link {
     color: var(--text);
     text-decoration: underline;
     text-underline-offset: var(--space-2);
@@ -356,4 +392,42 @@
     border: var(--border-width) solid var(--border);
     background: var(--bg-workspace);
     color: var(--text-muted);
+}
+
+/* Shell frame entry (DESIGN §2, SPEC §8): the frame in a box of its own instead of the window,
+   each slot a dashed box that names it. */
+.gallery-shell {
+    height: 520px;
+    border: var(--border-width) solid var(--border);
+}
+
+.gallery-shell__slot {
+    display: grid;
+    place-items: center;
+    border: var(--border-width) dashed var(--border-input);
+    border-radius: var(--radius-control);
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+.gallery-shell__slot[data-slot="menuCentre"] {
+    height: var(--row-height);
+    padding: 0 var(--space-16);
+}
+
+.gallery-shell__slot[data-slot="railFooter"] {
+    width: var(--row-height);
+    height: 100%;
+    writing-mode: vertical-rl;
+}
+
+.gallery-shell__slot[data-slot="viewport"],
+.gallery-shell__slot[data-slot="noDocument"] {
+    position: absolute;
+    inset: var(--space-16);
+}
+
+.gallery-shell__slot[data-slot="bottom"] {
+    position: absolute;
+    inset: var(--space-8) var(--space-16);
 }
