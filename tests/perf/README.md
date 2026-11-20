@@ -48,7 +48,9 @@ not finish shows as a warning.
 
 ## Recording (owner only)
 
-On the reference hardware, from a clean working tree at the commit to record:
+On the reference hardware, with the change to record in the working tree and nothing else
+changed. A record committed with the change it measures names that commit's parent as
+`commit`, with `workingTreeClean: false`:
 
 ```sh
 node tests/perf/record.ts harness-baseline
