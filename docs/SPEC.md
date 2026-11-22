@@ -109,13 +109,13 @@ The package has no frame budgets of its own; it must not move the apps' (BRIEF �
 
 | Subpath | Layer | Contents |
 | --- | --- | --- |
-| `@ngne/editor-ui` | UI | `createEditorUi`, `UiRoot`, `EditorUiConfig` and the types of §5 |
+| `@ngne/editor-ui` | UI | `createEditorUi`, `UiRoot`, `EditorUiConfig` and the types of §5; `persistedNames`, the theme and recent-commands store factories and `DEFAULT_THEME` (§5) |
 | `@ngne/editor-ui/styles.css` | Styles | `tokens.css`, `base.css` and every component stylesheet, in one entry |
 | `@ngne/editor-ui/styles/check` | Build | `checkStylesheets` (§9.2) |
 | `@ngne/editor-ui/primitives` | UI | §9.1 |
 | `@ngne/editor-ui/focus` | UI | Modality, inert outside, menu opener, return focus |
 | `@ngne/editor-ui/messages` | UI | Toasts, dialog host and registry, notices, discard question, region boundary |
-| `@ngne/editor-ui/shell` | UI | §8 |
+| `@ngne/editor-ui/shell` | UI | §8; the layout store factory (§5) |
 | `@ngne/editor-ui/commands` | UI + Model | §7 |
 | `@ngne/editor-ui/overlay` | Model | Overlay layer registry, wheel steps |
 | `@ngne/editor-ui/platform` | UI | Window size, WebGPU check, storage access |
@@ -167,14 +167,22 @@ const editorUi = createEditorUi({
 
 Persisted names keep their current values, so a migrating app keeps its users' data:
 
-| Name | Value |
-| --- | --- |
-| Theme | `<id>.theme` |
-| Layout | `<id>.layout`; stored fields unchanged, including `timelineHeight` for the bottom region |
-| Recent commands | `<id>.recent-commands` |
-| Cache prefix | `<id>-` |
-| Worker messages | `<id>:skip-waiting`, `<id>:started` |
-| Older-windows key | `<id>-older-windows` |
+| Name | Value | `persistedNames(id)` field |
+| --- | --- | --- |
+| Theme | `<id>.theme` | `theme` |
+| Layout | `<id>.layout`; stored fields unchanged, including `timelineHeight` for the bottom region | `layout` |
+| Recent commands | `<id>.recent-commands` | `recentCommands` |
+| Cache prefix | `<id>-` | `cachePrefix` |
+| Worker messages | `<id>:skip-waiting`, `<id>:started` | `skipWaiting`, `started` |
+| Older-windows key | `<id>-older-windows` | `olderWindows` |
+
+An app names them without building an instance: `persistedNames(id)` (`@ngne/editor-ui`)
+returns every name of the table for an id; `pwaNames(id)` (`@ngne/editor-ui/pwa`) returns the
+worker's part. The instance builds its stores with the factories the package exports, each over
+a storage and a key: `createThemeStore` and `createRecentCommandsStore` (`@ngne/editor-ui`),
+`createLayoutStore` (`@ngne/editor-ui/shell`). An app's test drives them against a storage of
+its own (`KeyValueStorage`; `null` keeps a store in memory). `DEFAULT_THEME` (`@ngne/editor-ui`)
+is the theme a missing or unknown stored value gives.
 
 The public API calls the bottom region "bottom" (`BOTTOM_HEIGHT`, `resolveBottomHeight`);
 only the stored field keeps its old name.

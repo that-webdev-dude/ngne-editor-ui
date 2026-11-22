@@ -6,6 +6,7 @@ import type { CommandModule } from "../../model/commands/types.js";
 import { RegistrationError } from "../../model/modules.js";
 import type { ModuleMap } from "../../model/modules.js";
 import { collectOverlayLayers } from "../../model/overlay/layers.js";
+import { persistedNames } from "../../model/persistedNames.js";
 import type { OverlayLayer } from "../../model/overlay/layers.js";
 import { collectContextBarContent } from "../../model/registries/contextBar.js";
 import type { ContextBarContent } from "../../model/registries/contextBar.js";
@@ -88,10 +89,6 @@ export interface EditorUi<
 /** Any editor's instance, as `UiRoot` and the package's components take it. */
 export type AnyEditorUi = EditorUi<string, string, ToolBase, unknown, unknown>;
 
-/** The persisted name `<id>.<name>` of SPEC §5. */
-export const persistedName = (id: string, name: "theme" | "layout" | "recent-commands"): string =>
-    `${id}.${name}`;
-
 /** What the package itself adds to every instance; a parameter so tests can pass fixtures. */
 export interface PackageParts {
     /** The package's command modules, each called with the instance, registered before the editor's. */
@@ -158,6 +155,7 @@ export function buildEditorUi<
     const resolved = resolveEditorUiConfig(config);
     const { id, modules } = resolved;
     const storage = browserStorage();
+    const names = persistedNames(id);
     const surfaces = createSurfaces([...PACKAGE_SURFACES, ...Object.keys(resolved.surfaces)]);
     const bottomRegion = createBottomRegionStore();
 
@@ -193,9 +191,9 @@ export function buildEditorUi<
 
     return {
         config: resolved,
-        theme: createThemeStore(storage, persistedName(id, "theme")),
-        recentCommands: createRecentCommandsStore(storage, persistedName(id, "recent-commands")),
-        layout: createLayoutStore(storage, persistedName(id, "layout")),
+        theme: createThemeStore(storage, names.theme),
+        recentCommands: createRecentCommandsStore(storage, names.recentCommands),
+        layout: createLayoutStore(storage, names.layout),
         bottomRegion,
         commands,
         keyContextState,

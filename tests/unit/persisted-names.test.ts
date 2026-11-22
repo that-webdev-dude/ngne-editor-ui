@@ -1,8 +1,17 @@
+import { readFileSync } from "node:fs";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createEditorUi, setTheme } from "../../src/ui/index.ts";
-import type { AppInfo, EditorUiConfig } from "../../src/ui/index.ts";
+import {
+    createEditorUi,
+    createRecentCommandsStore,
+    createThemeStore,
+    DEFAULT_THEME,
+    persistedNames,
+    setTheme,
+} from "../../src/ui/index.ts";
+import type { AppInfo, EditorUiConfig, PersistedNames } from "../../src/ui/index.ts";
 import type { KeyValueStorage } from "../../src/ui/platform/index.ts";
 import { pwaNames, registerAppUpdates } from "../../src/ui/pwa/index.ts";
+import { createLayoutStore } from "../../src/ui/shell/index.ts";
 import { installServiceWorker } from "../../src/worker/index.ts";
 import { FakeContainer, FakeWorker, simulateWorkerScope } from "./support/pwa.ts";
 
@@ -12,8 +21,10 @@ import { FakeContainer, FakeWorker, simulateWorkerScope } from "./support/pwa.ts
 // use today, so a migrating editor keeps its users' data. Each instance reads and writes
 // exactly those keys of the browser's storage (localStorage, stubbed here), and loads values
 // the editors stored before they used the package. The service worker's names too: its cache
-// prefix, the pages' messages and the older-windows key, in the worker and on the page. With the
-// theme store's own cases.
+// prefix, the pages' messages and the older-windows key, in the worker and on the page. The
+// package exports every name for an id (`persistedNames`) and the factories the instance builds
+// its stores with, so an editor's own storage-key tests drive them against a storage they pass
+// in. With the theme store's own cases.
 
 const IDS = ["ngne-sprite-editor", "ngne-tilemap-editor"] as const;
 
@@ -139,6 +150,112 @@ describe.each(IDS)("persisted names of %s", (id) => {
         expect(editorUi.theme.getState().theme).toBe("dark");
         expect(editorUi.layout.getState()).toMatchObject({ dockWidth: null, bottomHeight: null });
         expect(editorUi.recentCommands.getState().ids).toEqual([]);
+    });
+});
+
+/** The rows of SPEC §5's persisted-names table: each value with its `persistedNames` field. */
+function specNames(): { field: string; value: string }[] {
+    const spec = readFileSync(new URL("../../docs/SPEC.md", import.meta.url), "utf8");
+    const start = spec.indexOf("Persisted names keep their current values");
+    const section = spec.slice(start, spec.indexOf("\n\n", spec.indexOf("| --- |", start)));
+    const ticked = (cell: string) => [...cell.matchAll(/`([^`]+)`/g)].map((match) => match[1]!);
+    return section
+        .split("\n")
+        .filter(
+            (line) => line.startsWith("| ") && !line.startsWith("| Name") && !line.includes("---"),
+        )
+        .flatMap((line) => {
+            const [, , value = "", fields = ""] = line.split("|");
+            const values = ticked(value).filter((name) => name.includes("<id>"));
+            const names = ticked(fields);
+            expect(values.length, line).toBe(names.length);
+            return names.map((field, index) => ({ field, value: values[index]! }));
+        });
+}
+
+describe.each(IDS)("exported persisted names of %s", (id) => {
+    const names = persistedNames(id);
+
+    it("are SPEC §5's table for the id, every name once", () => {
+        const rows = specNames();
+        expect(rows).toHaveLength(7);
+        expect(Object.keys(names).sort()).toEqual(rows.map((row) => row.field).sort());
+        for (const { field, value } of rows) {
+            expect(names[field as keyof PersistedNames], field).toBe(value.replace("<id>", id));
+        }
+    });
+
+    it("hold the worker's names as pwaNames gives them", () => {
+        expect(names).toMatchObject(pwaNames(id));
+    });
+
+    it("are exactly the keys the instance's stores read and write", () => {
+        const { read, written } = useStorage();
+        const editorUi = createEditorUi(config(id));
+        setTheme(editorUi, "light");
+        editorUi.layout.getState().setDockWidth(300);
+        editorUi.recentCommands.getState().record("edit.undo");
+        const keys = [names.layout, names.recentCommands, names.theme];
+        expect([...new Set(read)].sort()).toEqual(keys);
+        expect([...new Set(written)].sort()).toEqual(keys);
+    });
+});
+
+describe("exported store factories, over a storage the caller passes", () => {
+    const names = persistedNames("ngne-sprite-editor");
+
+    it("build the theme store under the key given, DEFAULT_THEME when nothing is stored", () => {
+        expect(DEFAULT_THEME).toBe("dark");
+        const { storage, items, written } = recordingStorage();
+        const theme = createThemeStore(storage, names.theme);
+        expect(theme.getState().theme).toBe(DEFAULT_THEME);
+        theme.getState().setTheme("light");
+        expect(written).toEqual([names.theme]);
+        expect(items.get(names.theme)).toBe("light");
+        expect(createThemeStore(storage, names.theme).getState().theme).toBe("light");
+        const unknown = recordingStorage({ [names.theme]: "sepia" }).storage;
+        expect(createThemeStore(unknown, names.theme).getState().theme).toBe(DEFAULT_THEME);
+    });
+
+    it("build the layout store under the key given, in the stored record", () => {
+        const { storage, items, written } = recordingStorage({
+            [names.layout]: '{"dockWidth":312,"timelineHeight":260}',
+        });
+        const layout = createLayoutStore(storage, names.layout);
+        expect(layout.getState()).toMatchObject({ dockWidth: 312, bottomHeight: 260 });
+        layout.getState().setBottomHeight(240);
+        expect(written).toEqual([names.layout]);
+        expect(JSON.parse(items.get(names.layout)!)).toEqual({
+            dockWidth: 312,
+            timelineHeight: 240,
+        });
+    });
+
+    it("build the recent-commands store under the key given", () => {
+        const { storage, items, written } = recordingStorage();
+        const recent = createRecentCommandsStore(storage, names.recentCommands);
+        recent.getState().record("edit.undo");
+        recent.getState().record("layer.new");
+        expect(written).toEqual([names.recentCommands, names.recentCommands]);
+        expect(items.get(names.recentCommands)).toBe('["layer.new","edit.undo"]');
+        expect(createRecentCommandsStore(storage, names.recentCommands).getState().ids).toEqual([
+            "layer.new",
+            "edit.undo",
+        ]);
+    });
+
+    it("keep each store in memory without a storage, and never reach the browser's", () => {
+        expect(typeof localStorage).toBe("undefined");
+        const theme = createThemeStore(null, names.theme);
+        const layout = createLayoutStore(null, names.layout);
+        const recent = createRecentCommandsStore(null, names.recentCommands);
+        theme.getState().setTheme("light");
+        layout.getState().setDockWidth(300);
+        recent.getState().record("edit.undo");
+        expect(theme.getState().theme).toBe("light");
+        expect(layout.getState().dockWidth).toBe(300);
+        expect(recent.getState().ids).toEqual(["edit.undo"]);
+        expect(createThemeStore(null, names.theme).getState().theme).toBe(DEFAULT_THEME);
     });
 });
 
