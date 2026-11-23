@@ -7,7 +7,7 @@ import type { DemoContext } from "./keys.ts";
 import { PreferencesDialog } from "./PreferencesDialog.tsx";
 import { rowsStore } from "./rows.ts";
 import { bottomRegionState, keyContextState, STATE_CONTEXTS, toolRegistry } from "./sources.ts";
-import { RAIL_FOOTER_HEIGHT } from "./tools.ts";
+import { RAIL_FOOTER_HEIGHT, toolSetStore } from "./tools.ts";
 import type { DemoTool } from "./tools.ts";
 
 // The gallery's demo editor (SPEC §5): its editor UI instance, configured as an editor's
@@ -71,7 +71,7 @@ export const editorUi = createEditorUi({
             eager: true,
         }),
     },
-    refreshOn: [rowsStore],
+    refreshOn: [rowsStore, toolSetStore],
     surfaces: { preferences: PreferencesDialog },
     sources: { keyContextState, bottomRegion: bottomRegionState, tools: toolRegistry },
 });

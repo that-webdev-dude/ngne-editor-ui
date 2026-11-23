@@ -13,7 +13,8 @@ import {
 // The tool rail (SPEC §8, DESIGN §2, §4, §9) on the demo editor: the `*.tools.ts` slots in the
 // registry's groups with separators, planned slots disabled, the footer slot in the height the
 // configuration reserves; one column, or two when one does not fit, never clipped; the editor's
-// filter (the demo's tool set) choosing the slots shown; a key or a click selecting a tool, the
+// filter (the demo's tool set) choosing the slots shown; a key two tool sets share, named and
+// taken by the tool of the set shown (SPEC §8 Tools); a key or a click selecting a tool, the
 // focus going to the target the editor passes; the variants of a slot; the tooltip with name
 // and key after 400 ms; a tool registered at run time (the demo's probe tool) joining and
 // leaving the rail; both themes with no WCAG 2.1 AA violation.
@@ -179,6 +180,48 @@ test("with a filter only the chosen slots show and the columns recompute; a new 
     expect(await railGroups(page)).toEqual([PAINT, SHAPES, TEXT, NAVIGATE]);
     await expect(rail(page)).toHaveAttribute("data-columns", "1");
     await expect(slot(page, "pencil")).toHaveAttribute("aria-pressed", "true");
+});
+
+/** Hovers the rail slot `id` and returns its tooltip; moves away and waits for it to close. */
+async function tooltipText(page: Page, id: string): Promise<string> {
+    const tooltip = page.locator(".ui-tooltip");
+    const box = await boxOf(slot(page, id));
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await expect(tooltip).toBeVisible();
+    const text = await tooltip.innerText();
+    await page.mouse.move(box.x + 600, box.y + 300, { steps: 4 });
+    await expect(tooltip).toHaveCount(0);
+    return text;
+}
+
+test("tools of two sets share a key: the tooltip of the one shown names it, and the key selects it", async ({
+    page,
+}) => {
+    const errors = uncaughtErrors(page);
+    // Paint: the fill shows G, and G selects it.
+    await expect(slot(page, "wand")).toHaveCount(0);
+    expect(await tooltipText(page, "fill")).toMatch(/^Fill\s*G$/);
+    await focus(viewport(page));
+    await page.keyboard.press("KeyG");
+    await expect(slot(page, "fill")).toHaveAttribute("aria-pressed", "true");
+    await expect(contextTool(page)).toHaveText("Fill");
+
+    // Select: the magic wand shows the same key, and G selects the wand now.
+    await chooseToolSet(page, "Select");
+    await expect(slot(page, "fill")).toHaveCount(0);
+    expect(await tooltipText(page, "wand")).toMatch(/^Magic wand\s*G$/);
+    await focus(viewport(page));
+    await page.keyboard.press("KeyG");
+    await expect(slot(page, "wand")).toHaveAttribute("aria-pressed", "true");
+    await expect(contextTool(page)).toHaveText("Magic wand");
+
+    // Back to Paint: G selects the fill again.
+    await chooseToolSet(page, "Paint");
+    await focus(viewport(page));
+    await page.keyboard.press("KeyG");
+    await expect(slot(page, "fill")).toHaveAttribute("aria-pressed", "true");
+    await expect(contextTool(page)).toHaveText("Fill");
+    expect(errors).toEqual([]);
 });
 
 test("a key and a click select a tool; the pointer sends the focus to the editor's target, the keyboard keeps it", async ({

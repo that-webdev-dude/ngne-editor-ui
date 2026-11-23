@@ -21,7 +21,15 @@ type Callable = (...args: never[]) => unknown;
 describe("ToolBase", () => {
     it("holds the rail's and the context bar's fields only", () => {
         expectTypeOf<keyof ToolBase>().toEqualTypeOf<
-            "id" | "label" | "icon" | "shortcut" | "hold" | "railOrder" | "variantOf" | "options"
+            | "id"
+            | "label"
+            | "icon"
+            | "shortcut"
+            | "hold"
+            | "railOrder"
+            | "variantOf"
+            | "options"
+            | "toolSets"
         >();
         expectTypeOf<ToolBase["id"]>().toEqualTypeOf<string>();
         expectTypeOf<ToolBase["label"]>().toEqualTypeOf<string>();
@@ -33,6 +41,36 @@ describe("ToolBase", () => {
         expectTypeOf<ToolBase["railOrder"]>().toEqualTypeOf<number | undefined>();
         expectTypeOf<ToolBase["variantOf"]>().toEqualTypeOf<string | undefined>();
         expectTypeOf<ToolBase["options"]>().toEqualTypeOf<readonly ToolOptionSpec[] | undefined>();
+        expectTypeOf<ToolBase["toolSets"]>().toEqualTypeOf<readonly string[] | undefined>();
+    });
+
+    it("gives tools, planned slots and rail slots the tool sets they are offered in", () => {
+        expectTypeOf<PlannedToolSpec["toolSets"]>().toEqualTypeOf<readonly string[] | undefined>();
+        expectTypeOf<RailSlot["toolSets"]>().toEqualTypeOf<readonly string[] | undefined>();
+        // Optional on what an editor declares, always present on the slot the rail reads.
+        expectTypeOf<{ id: string; label: string }>().toExtend<ToolBase>();
+        expectTypeOf<{ id: string; label: string; icon: string; railOrder: number }>().toExtend<
+            PlannedToolSpec<string>
+        >();
+        expectTypeOf<Omit<RailSlot, "toolSets">>().not.toExtend<RailSlot>();
+        // @ts-expect-error The sets are a list of names, not one name.
+        const one: ToolBase = { id: "fill", label: "Fill", toolSets: "tile" };
+        // @ts-expect-error Nor a list of anything else.
+        const numbers: ToolBase = { id: "fill", label: "Fill", toolSets: [1] };
+        expect([one, numbers]).toHaveLength(2);
+
+        const registry = createToolRegistry<ToolBase<string>>();
+        registry.plan({ id: "fill", label: "Fill", icon: "f", railOrder: 100, toolSets: ["tile"] });
+        registry.register({ id: "rect", label: "Rect", icon: "r", railOrder: 110 });
+        registry.register({ id: "stamp", label: "Stamp", toolSets: ["tile", "marker"] });
+        expect(registry.railSlots().map((slot) => [slot.id, slot.toolSets])).toEqual([
+            ["fill", ["tile"]],
+            ["rect", undefined],
+        ]);
+        expect(registry.get("stamp")?.toolSets).toEqual(["tile", "marker"]);
+        // A tool takes its planned slot's sets.
+        registry.register({ id: "fill", label: "Fill" });
+        expect(registry.get("fill")?.toolSets).toEqual(["tile"]);
     });
 
     it("carries no handler, pointer, stroke or document type", () => {

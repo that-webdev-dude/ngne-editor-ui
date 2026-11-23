@@ -2,13 +2,13 @@ import type { CommandRegistry } from "@ngne/editor-ui/commands";
 import { Crosshair } from "lucide-react";
 import { toolRegistry } from "./sources.ts";
 import { toolKeyCommand } from "./toolKeys.ts";
-import { selectTool, toolStore } from "./tools.ts";
+import { PAINT_SET, selectTool, toolStore } from "./tools.ts";
 import type { DemoTool } from "./tools.ts";
 
 // A tool the demo editor registers at run time (SPEC §8 Tool rail), as an editor's test
 // fixture does: the viewport's "Probe tool" toggle adds it to the registry the instance's rail
 // and context bar read, with the command of its key, and takes both out again. It joins the
-// text group, so every tool set but Select shows it.
+// text group of the Paint tool set.
 
 export const PROBE_TOOL: DemoTool = {
     id: "probe",
@@ -16,6 +16,7 @@ export const PROBE_TOOL: DemoTool = {
     icon: Crosshair,
     shortcut: "K",
     railOrder: 420,
+    toolSets: PAINT_SET,
     options: [
         { key: "radius", label: "Radius", kind: "number", min: 1, max: 32, unit: "px", default: 4 },
         { key: "snap", label: "Snap to pixel", kind: "toggle", default: true },

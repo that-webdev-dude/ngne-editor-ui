@@ -89,6 +89,14 @@ export interface ToolBase<Icon = unknown> {
     variantOf?: string;
     /** The options the context bar shows while the tool is active. */
     options?: readonly ToolOptionSpec[];
+    /**
+     * The tool sets the tool is offered in, by the editor's names ("tile", "marker"), when the
+     * editor offers one set at a time (the tilemap offers the tools of the active layer's kind).
+     * Tools never offered together may share a key; two tools of one set may not. A tool
+     * without sets is in every set. A tool takes its planned slot's sets unless it names its
+     * own; the rail's filter may read them (`RailSlot.toolSets`).
+     */
+    toolSets?: readonly string[];
 }
 
 /** The icon type of a tool type. */
@@ -114,6 +122,8 @@ export interface PlannedToolSpec<Icon = unknown> {
     shortcut?: string;
     icon: Icon;
     railOrder: number;
+    /** The tool sets the slot is offered in, as `ToolBase.toolSets`; none for every set. */
+    toolSets?: readonly string[];
 }
 
 /** What a `*.tools.ts(x)` module exports (at least one of the two). */
@@ -129,6 +139,11 @@ export interface RailSlot<Tool extends ToolBase = ToolBase> {
     readonly shortcut: string | undefined;
     readonly icon: ToolIcon<Tool> | undefined;
     readonly railOrder: number;
+    /**
+     * The tool sets the slot is offered in: those of the slot's own tool, or of its planned slot
+     * while it has none; undefined for every set.
+     */
+    readonly toolSets: readonly string[] | undefined;
     /**
      * The tool of the slot's id, or the first of its variants when there is none; null while
      * the slot is planned only.

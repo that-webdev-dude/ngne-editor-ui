@@ -15,13 +15,16 @@ import type {
 // editor's tool keys read it. Generic over the editor's tool type (BRIEF D18): the registry
 // checks and orders what `ToolBase` declares and hands back the editor's tools unchanged
 // otherwise. Registration errors throw a `RegistrationError` naming the module, so a broken
-// module stops the editor at startup: an id used twice, an invalid option or key, a key that
-// two tools use.
+// module stops the editor at startup: an id used twice, an invalid option, key or tool set, a
+// key that two tools of one tool set use.
 
 export interface ToolRegistry<Tool extends ToolBase = ToolBase> {
     /** Adds a tool; returns the function that removes it. Throws `RegistrationError`. */
     register(spec: Tool, source?: string): () => void;
-    /** Adds the rail slot of a tool not implemented yet; returns its remover. */
+    /**
+     * Adds the rail slot of a tool not implemented yet; returns its remover, which throws, and
+     * keeps the slot, when the slot's tool would then share a key in a set it joins.
+     */
     plan(spec: PlannedToolSpec<ToolIcon<Tool>>, source?: string): () => void;
     /** The registered tool with this id. */
     get(id: string): RegisteredTool<Tool> | undefined;
@@ -72,6 +75,17 @@ function checkedChord(chord: string, fail: (problem: string) => never): string {
     }
 }
 
+/** Checks a tool's or planned slot's sets: none, or a list of named sets. */
+function checkToolSets(sets: readonly string[] | undefined, fail: (problem: string) => never) {
+    if (sets === undefined) return;
+    // Checked although typed: a module may be plain JavaScript data.
+    if (!Array.isArray(sets)) fail("has tool sets that are not a list.");
+    if (sets.length === 0) fail("lists no tool set; leave the sets out for every set.");
+    if (sets.some((set) => typeof set !== "string" || set.trim() === "")) {
+        fail("has a tool set without a name.");
+    }
+}
+
 function resolveTool<Tool extends ToolBase>(
     spec: Tool,
     source: string,
@@ -98,6 +112,7 @@ function resolveTool<Tool extends ToolBase>(
         fail("has a rail position that is not a number.");
     }
     if (spec.variantOf?.trim() === "") fail("is a variant of a slot without an id.");
+    checkToolSets(spec.toolSets, fail);
     // A variant shows its slot's icon when it has none of its own.
     const variant = spec.variantOf !== undefined && spec.variantOf !== spec.id;
     const tool = {
@@ -106,6 +121,7 @@ function resolveTool<Tool extends ToolBase>(
         icon: spec.icon ?? planned?.icon,
         shortcut: spec.shortcut ?? planned?.shortcut,
         railOrder: spec.railOrder ?? planned?.railOrder,
+        toolSets: spec.toolSets ?? planned?.toolSets,
         options,
     } as RegisteredTool<Tool>;
     if (tool.railOrder !== undefined && tool.icon === undefined && !variant) {
@@ -134,10 +150,19 @@ function byVariantOrder(
     return (a.railOrder ?? Infinity) - (b.railOrder ?? Infinity) || byId(a, b);
 }
 
-/** Who uses a key: the tool or planned slot of `id`, from the module `source`. */
+/** Who uses a key: the tool or planned slot of `id`, from the module `source`, in its sets. */
 interface KeyUser {
     readonly id: string;
     readonly source: string;
+    /** The tool sets it is offered in; none for every set. */
+    readonly toolSets?: readonly string[];
+}
+
+/** Whether two key users can be offered together: one is in every set, or they share one. */
+function offeredTogether(a: KeyUser, b: KeyUser): boolean {
+    const theirs = b.toolSets;
+    if (a.toolSets === undefined || theirs === undefined) return true;
+    return a.toolSets.some((set) => theirs.includes(set));
 }
 
 export function createToolRegistry<Tool extends ToolBase>(): ToolRegistry<Tool> {
@@ -164,27 +189,33 @@ export function createToolRegistry<Tool extends ToolBase>(): ToolRegistry<Tool> 
         );
 
     /**
-     * The keys in use by every tool and planned slot but those of `id`, canonical. A planned
-     * slot keeps its key for its id, also while its tool names another.
+     * The keys in use by every tool and planned slot but those of `id`, canonical, with their
+     * users. A planned slot keeps its key for its id, also while its tool names another.
      */
     const keysExcept = (id: string) => {
-        const users = new Map<string, KeyUser>();
+        const users: { readonly chord: string; readonly user: KeyUser }[] = [];
         for (const [other, { tool }] of specs) {
             if (other === id) continue;
-            for (const chord of toolKeys(tool)) users.set(chord, tool);
+            for (const chord of toolKeys(tool)) users.push({ chord, user: tool });
         }
         for (const [other, { spec, source }] of planned) {
             if (other === id || spec.shortcut === undefined) continue;
-            users.set(normalizeChord(spec.shortcut), { id: other, source });
+            const user = { id: other, source, toolSets: spec.toolSets };
+            users.push({ chord: normalizeChord(spec.shortcut), user });
         }
         return users;
     };
 
-    /** Throws when a key of `user` is in use by another tool or planned slot. */
+    /**
+     * Throws when a key of `user` is in use by another tool or planned slot offered with it:
+     * one of its tool sets, or any when either is in every set (SPEC §8 Tools).
+     */
     const checkKeys = (user: KeyUser, noun: string, keys: readonly string[]) => {
         const users = keysExcept(user.id);
         for (const chord of keys) {
-            const other = users.get(chord);
+            const other = users.find(
+                (entry) => entry.chord === chord && offeredTogether(user, entry.user),
+            )?.user;
             if (other === undefined) continue;
             throw new RegistrationError(
                 `${noun} "${user.id}" (${user.source}) uses key "${chord}", as ` +
@@ -194,10 +225,19 @@ export function createToolRegistry<Tool extends ToolBase>(): ToolRegistry<Tool> 
         }
     };
 
-    /** A registered tool takes what the slot planned for its id supplies. */
-    const resolveAgain = (id: string) => {
+    /**
+     * The registered tool of `id` as it is with `plan` as the slot planned for its id, which
+     * supplies its key and sets where it names none, its keys checked again; returns what puts
+     * it in place. A plan added or removed may change both.
+     */
+    const retake = (id: string, plan: Planned | undefined): (() => void) => {
         const entry = specs.get(id);
-        if (entry) entry.tool = resolveTool(entry.spec, entry.tool.source, planned.get(id)?.spec);
+        if (!entry) return () => undefined;
+        const tool = resolveTool(entry.spec, entry.tool.source, plan);
+        checkKeys(tool, "Tool", toolKeys(tool));
+        return () => {
+            entry.tool = tool;
+        };
     };
 
     return {
@@ -236,18 +276,23 @@ export function createToolRegistry<Tool extends ToolBase>(): ToolRegistry<Tool> 
                 );
             };
             if (!Number.isFinite(spec.railOrder)) fail("has no rail position.");
+            checkToolSets(spec.toolSets, fail);
             if (spec.shortcut !== undefined) {
                 const key = checkedChord(spec.shortcut, fail);
-                checkKeys({ id: spec.id, source }, "Planned tool", [key]);
+                checkKeys({ id: spec.id, source, toolSets: spec.toolSets }, "Planned tool", [key]);
             }
+            const take = retake(spec.id, spec);
             const entry = { spec, source };
             planned.set(spec.id, entry);
-            resolveAgain(spec.id);
+            take();
             changed();
+            // Throws, and keeps the plan, when its tool would then share a key with a tool of
+            // a set it joins: one that names no sets of its own joins every set.
             return () => {
                 if (planned.get(spec.id) !== entry) return;
+                const giveBack = retake(spec.id, undefined);
                 planned.delete(spec.id);
-                resolveAgain(spec.id);
+                giveBack();
                 changed();
             };
         },
@@ -280,6 +325,7 @@ export function createToolRegistry<Tool extends ToolBase>(): ToolRegistry<Tool> 
                     shortcut: tool.shortcut,
                     icon: tool.icon as ToolIcon<Tool> | undefined,
                     railOrder: tool.railOrder,
+                    toolSets: tool.toolSets,
                     tool,
                     variants: [tool, ...(variants.get(tool.id) ?? [])],
                 });
@@ -293,6 +339,7 @@ export function createToolRegistry<Tool extends ToolBase>(): ToolRegistry<Tool> 
                     shortcut: spec.shortcut,
                     icon: spec.icon,
                     railOrder: spec.railOrder,
+                    toolSets: spec.toolSets,
                     tool: list[0] ?? null,
                     variants: list,
                 });

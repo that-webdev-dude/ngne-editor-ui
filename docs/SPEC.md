@@ -330,8 +330,12 @@ bar. An app that passes no sources behaves as one before them.
   its options. An
   optional filter chooses the tools shown (the tilemap shows the tools of the active layer's
   kind): `AppShell`'s `railFilter`, over the rail's slots; a new function updates the rail and
-  its columns. The rail and the context bar read the editor's active-tool store, `AppShell`'s
-  `tools` (`ToolStateSource`: the active tool, the variant a slot shows, the option values,
+  its columns. A slot carries its tool sets (`RailSlot.toolSets`: its own tool's, or its
+  planned slot's while it has none; undefined for every set), so a filter may keep the slots of
+  the set shown and those in every set. Each button's tooltip and each variant menu item shows
+  the tool's own key, a key another set's tool shares included. The rail and the context bar
+  read the editor's active-tool store, `AppShell`'s `tools` (`ToolStateSource`: the active
+  tool, the variant a slot shows, the option values,
   selecting a tool and setting an option, `subscribe`), as the status bar reads `status`;
   without it they show no tools. A tool chosen with the pointer sends the focus to
   `toolFocus()`, the viewport target (§6) by default; from the keyboard the focus stays.
@@ -362,11 +366,23 @@ bar. An app that passes no sources behaves as one before them.
   with none left to the viewport target (`data-viewport-focus`).
 - **Tools (BRIEF D18):** `ToolBase` holds what the rail and context bar need: id, title
   (`label`), icon, key (`shortcut`, and a `hold` key), group (`railOrder`, whose hundreds are
-  the rail's groups), variant-of (`variantOf`), option specs (`options`). Apps extend it with
-  pointer and stroke behaviour; the registry is generic over `Tool extends ToolBase`. The app
-  may create the registry itself and pass it (`sources.tools`, §5), so its own code reads the
-  tools the shell shows, with no second catalogue. A key that two tools or planned slots use
-  is refused at registration.
+  the rail's groups), variant-of (`variantOf`), option specs (`options`), tool sets
+  (`toolSets`). Apps extend it with pointer and stroke behaviour; the registry is generic over
+  `Tool extends ToolBase`. The app may create the registry itself and pass it (`sources.tools`,
+  §5), so its own code reads the tools the shell shows, with no second catalogue.
+  - Tool sets: an editor that offers one set of tools at a time (the tilemap's tools per layer
+    kind) names the sets each tool and planned slot is offered in (`toolSets`, a non-empty list
+    of names). Without it a tool or planned slot is in every set. A tool takes its planned
+    slot's sets unless it names its own, as it takes its key.
+  - Keys: a key (`shortcut` or `hold`) that two tools or planned slots of one set use is
+    refused at registration, the error naming both and their modules; a tool or planned slot in
+    every set shares a set with each. Tools never offered together may share a key (the
+    tilemap's tile Shape Fill and marker Rectangle on U). The check runs again when a planned
+    slot arrives or is removed and its tool's key or sets change with it; a removal that would
+    make such a clash throws and keeps the slot. A key is kept on each tool unchanged: the
+    editor's key commands read it from there, and each command of a shared key has an `enabled`
+    condition true while its tool's set is shown, so the key selects the tool of that set and
+    the commands may bind one chord (§7.1).
 - **F6 regions:** found by `data-region`; F6 / Shift+F6 cycle them (`focus.nextRegion`,
   `focus.previousRegion`, in `global` and `text`, the editors' ids).
 

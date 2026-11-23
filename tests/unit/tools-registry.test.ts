@@ -344,6 +344,187 @@ describe("keys", () => {
     });
 });
 
+describe("keys per tool set", () => {
+    /** The tilemap's shared letters: the tile shapes and the marker shapes on U and Shift+U. */
+    const tileAndMarkerPlans: PlannedToolSpec<string>[] = [
+        {
+            id: "shapeFill",
+            label: "Shape fill",
+            shortcut: "U",
+            icon: "square",
+            railOrder: 100,
+            toolSets: ["tile"],
+        },
+        {
+            id: "markerRectangle",
+            label: "Rectangle",
+            shortcut: "U",
+            icon: "square",
+            railOrder: 200,
+            toolSets: ["marker"],
+        },
+    ];
+
+    it("lets tools and planned slots of two sets share a key", () => {
+        const registry = createToolRegistry<FixtureTool>();
+        registerToolModules(registry, {
+            "./planned.tools.ts": { plannedTools: tileAndMarkerPlans },
+            "./shapes.tools.ts": {
+                tools: [
+                    tool("shapeFill"),
+                    tool("ellipseFill", {
+                        variantOf: "shapeFill",
+                        shortcut: "Shift+U",
+                        toolSets: ["tile"],
+                    }),
+                    tool("markerEllipse", {
+                        variantOf: "markerRectangle",
+                        shortcut: "Shift+U",
+                        toolSets: ["marker"],
+                    }),
+                ],
+            },
+        });
+        expect(registry.railSlots().map((slot) => [slot.id, slot.shortcut, slot.toolSets])).toEqual(
+            [
+                ["shapeFill", "U", ["tile"]],
+                ["markerRectangle", "U", ["marker"]],
+            ],
+        );
+        // The key reaches each tool unchanged: an editor's key commands read it from there.
+        expect(registry.get("shapeFill")?.shortcut).toBe("U");
+        expect(registry.get("markerEllipse")?.shortcut).toBe("Shift+U");
+        expect(slotIn(registry, "markerRectangle").variants.map((variant) => variant.id)).toEqual([
+            "markerEllipse",
+        ]);
+        // A hold key is checked per set too.
+        registry.register(
+            tool("pick", { hold: { key: "Alt" }, toolSets: ["tile"] }),
+            "./pick.tools.ts",
+        );
+        registry.register(tool("measure", { shortcut: "Alt", toolSets: ["marker"] }));
+        expect(registry.list().map((entry) => entry.id)).toContain("measure");
+    });
+
+    it("refuses a key two tools of one set use, naming both and their modules", () => {
+        const registry = createToolRegistry<FixtureTool>();
+        registerToolModules(registry, {
+            "./planned.tools.ts": { plannedTools: tileAndMarkerPlans },
+        });
+        // In both sets: it meets the marker rectangle in "marker".
+        expect(() =>
+            registry.register(
+                tool("stamp", { shortcut: "U", toolSets: ["object", "marker"] }),
+                "./stamp.tools.ts",
+            ),
+        ).toThrow(
+            'Tool "stamp" (./stamp.tools.ts) uses key "U", as "markerRectangle" (./planned.tools.ts) does.',
+        );
+        registry.register(tool("brush", { shortcut: "B", toolSets: ["tile"] }), "./a.tools.ts");
+        expect(() =>
+            registry.register(tool("other", { shortcut: "b", toolSets: ["tile"] }), "./b.tools.ts"),
+        ).toThrow('Tool "other" (./b.tools.ts) uses key "B", as "brush" (./a.tools.ts) does.');
+        expect(() =>
+            registry.plan(
+                {
+                    id: "spray",
+                    label: "Spray",
+                    shortcut: "B",
+                    icon: "s",
+                    railOrder: 300,
+                    toolSets: ["tile"],
+                },
+                "./c.tools.ts",
+            ),
+        ).toThrow(
+            'Planned tool "spray" (./c.tools.ts) uses key "B", as "brush" (./a.tools.ts) does.',
+        );
+        expect(() =>
+            registry.register(
+                tool("dab", { hold: { key: "B" }, toolSets: ["tile"] }),
+                "./d.tools.ts",
+            ),
+        ).toThrow(/Tool "dab" \(\.\/d\.tools\.ts\) uses key "B", as "brush"/);
+        expect(registry.list().map((entry) => entry.id)).toEqual(["brush"]);
+        expect(registry.railSlots().map((slot) => slot.id)).toEqual([
+            "shapeFill",
+            "markerRectangle",
+        ]);
+    });
+
+    it("treats a tool or planned slot in no set as in every set, as before", () => {
+        const registry = createToolRegistry<FixtureTool>();
+        registry.register(tool("fill", { shortcut: "G", toolSets: ["tile"] }), "./a.tools.ts");
+        expect(() => registry.register(tool("bucket", { shortcut: "G" }), "./b.tools.ts")).toThrow(
+            'Tool "bucket" (./b.tools.ts) uses key "G", as "fill" (./a.tools.ts) does.',
+        );
+        registry.register(tool("hand", { shortcut: "H" }), "./a.tools.ts");
+        expect(() =>
+            registry.register(
+                tool("hold", { shortcut: "H", toolSets: ["marker"] }),
+                "./b.tools.ts",
+            ),
+        ).toThrow('Tool "hold" (./b.tools.ts) uses key "H", as "hand" (./a.tools.ts) does.');
+        expect(() =>
+            registry.plan({ id: "zoom", label: "Zoom", shortcut: "H", icon: "z", railOrder: 1 }),
+        ).toThrow(/Planned tool "zoom" \(runtime\) uses key "H", as "hand"/);
+        expect(registry.list().map((entry) => entry.id)).toEqual(["fill", "hand"]);
+    });
+
+    it("refuses tool sets that are empty or unnamed", () => {
+        const registry = createToolRegistry<FixtureTool>();
+        expect(() => registry.register(tool("x", { toolSets: [] }), "./x.tools.ts")).toThrow(
+            'Tool "x" (./x.tools.ts) lists no tool set; leave the sets out for every set.',
+        );
+        expect(() => registry.register(tool("x", { toolSets: ["tile", " "] }))).toThrow(
+            /a tool set without a name/,
+        );
+        expect(() =>
+            registry.register(tool("x", { toolSets: "tile" as unknown as string[] })),
+        ).toThrow(/tool sets that are not a list/);
+        const slot = { id: "s", label: "S", icon: "i", railOrder: 100 };
+        expect(() => registry.plan({ ...slot, toolSets: [] }, "p.tools.ts")).toThrow(
+            /Planned tool "s" \(p\.tools\.ts\) lists no tool set/,
+        );
+        expect(registry.list()).toEqual([]);
+        expect(registry.railSlots()).toEqual([]);
+    });
+
+    it("gives a tool its planned slot's sets unless it names its own, its keys checked in them", () => {
+        const registry = createToolRegistry<FixtureTool>();
+        registry.register(tool("rect", { shortcut: "K", toolSets: ["marker"] }), "./a.tools.ts");
+        registry.register(tool("fill", { toolSets: ["marker"] }), "./b.tools.ts");
+        // The planned key is free in "tile", but the tool of its id is a marker tool.
+        expect(() =>
+            registry.plan({ ...tileAndMarkerPlans[0]!, id: "fill", shortcut: "K" }, "./p.tools.ts"),
+        ).toThrow('Tool "fill" (./b.tools.ts) uses key "K", as "rect" (./a.tools.ts) does.');
+        expect(registry.get("fill")?.shortcut).toBeUndefined();
+        expect(registry.railSlots()).toEqual([]);
+
+        // A tool naming no sets of its own takes the slot's, and keeps them while the plan holds.
+        const unplan = registry.plan(
+            { ...tileAndMarkerPlans[0]!, id: "line", shortcut: "L" },
+            "./p.tools.ts",
+        );
+        registry.register(tool("line", { shortcut: "J" }), "./c.tools.ts");
+        expect(registry.get("line")?.toolSets).toEqual(["tile"]);
+        const removeJump = registry.register(
+            tool("jump", { shortcut: "J", toolSets: ["marker"] }),
+            "./d.tools.ts",
+        );
+        // Without the plan the line would be in every set, with the marker tool's key: refused,
+        // and the plan stays.
+        expect(unplan).toThrow(
+            'Tool "line" (./c.tools.ts) uses key "J", as "jump" (./d.tools.ts) does.',
+        );
+        expect(slotIn(registry, "line").toolSets).toEqual(["tile"]);
+        removeJump();
+        unplan();
+        expect(registry.get("line")?.toolSets).toBeUndefined();
+        expect(registry.get("line")?.shortcut).toBe("J");
+    });
+});
+
 describe("slots with variants", () => {
     it("lists a slot's own tool first, then its variants by position and id; variants take no slot", () => {
         const registry = rail(

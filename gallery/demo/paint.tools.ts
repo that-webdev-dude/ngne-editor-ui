@@ -15,12 +15,13 @@ import {
     Type,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { PAINT_SET } from "./tools.ts";
 import type { DemoTool } from "./tools.ts";
 
 // The demo editor's painting, shape and text tools (SPEC §1.3 `*.tools.ts`, §8): three groups of
-// the rail, with planned slots (disabled until a tool takes them) and a variant on the
-// rectangle's slot. The airbrush has more options than the context bar holds at 1280 px, so
-// the last of them move into its overflow menu.
+// the rail, the Paint tool set, with planned slots (disabled until a tool takes them) and a
+// variant on the rectangle's slot. The airbrush has more options than the context bar holds at
+// 1280 px, so the last of them move into its overflow menu.
 
 const size = (max: number, initial: number) =>
     ({
@@ -55,9 +56,9 @@ const percent = (key: string, label: string, min: number, initial: number) =>
     ({ key, label, kind: "number", min, max: 100, unit: "%", default: initial }) as const;
 
 export const plannedTools: PlannedToolSpec<LucideIcon>[] = [
-    { id: "smudge", label: "Smudge", icon: Droplet, railOrder: 250 },
-    { id: "curve", label: "Curve", icon: Spline, railOrder: 330 },
-    { id: "note", label: "Note", icon: StickyNote, railOrder: 410 },
+    { id: "smudge", label: "Smudge", icon: Droplet, railOrder: 250, toolSets: PAINT_SET },
+    { id: "curve", label: "Curve", icon: Spline, railOrder: 330, toolSets: PAINT_SET },
+    { id: "note", label: "Note", icon: StickyNote, railOrder: 410, toolSets: PAINT_SET },
 ];
 
 export const tools: DemoTool[] = [
@@ -67,6 +68,7 @@ export const tools: DemoTool[] = [
         icon: Pencil,
         shortcut: "B",
         railOrder: 200,
+        toolSets: PAINT_SET,
         options: [size(16, 1), pixelPerfect],
     },
     {
@@ -75,6 +77,7 @@ export const tools: DemoTool[] = [
         icon: SprayCan,
         shortcut: "A",
         railOrder: 210,
+        toolSets: PAINT_SET,
         options: [
             size(64, 8),
             percent("flow", "Flow", 1, 50),
@@ -112,6 +115,7 @@ export const tools: DemoTool[] = [
         icon: Eraser,
         shortcut: "E",
         railOrder: 220,
+        toolSets: PAINT_SET,
         options: [size(16, 1)],
     },
     {
@@ -120,6 +124,7 @@ export const tools: DemoTool[] = [
         icon: PaintBucket,
         shortcut: "G",
         railOrder: 230,
+        toolSets: PAINT_SET,
         options: [
             { key: "tolerance", label: "Tolerance", kind: "number", min: 0, max: 255, default: 0 },
             { key: "contiguous", label: "Contiguous", kind: "toggle", default: true },
@@ -131,6 +136,7 @@ export const tools: DemoTool[] = [
         icon: Pipette,
         shortcut: "I",
         railOrder: 240,
+        toolSets: PAINT_SET,
         options: [
             {
                 key: "sample",
@@ -151,6 +157,7 @@ export const tools: DemoTool[] = [
         icon: Slash,
         shortcut: "L",
         railOrder: 300,
+        toolSets: PAINT_SET,
         options: [size(16, 1)],
     },
     {
@@ -159,6 +166,7 @@ export const tools: DemoTool[] = [
         icon: Square,
         shortcut: "U",
         railOrder: 310,
+        toolSets: PAINT_SET,
         options: [fill],
     },
     {
@@ -167,16 +175,25 @@ export const tools: DemoTool[] = [
         icon: Circle,
         shortcut: "Shift+U",
         railOrder: 311,
+        toolSets: PAINT_SET,
         variantOf: "rectangle",
         options: [fill],
     },
-    { id: "polygon", label: "Polygon", icon: Pentagon, shortcut: "P", railOrder: 320 },
+    {
+        id: "polygon",
+        label: "Polygon",
+        icon: Pentagon,
+        shortcut: "P",
+        railOrder: 320,
+        toolSets: PAINT_SET,
+    },
     {
         id: "text",
         label: "Text",
         icon: Type,
         shortcut: "T",
         railOrder: 400,
+        toolSets: PAINT_SET,
         options: [
             {
                 key: "size",
