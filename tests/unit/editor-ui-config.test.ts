@@ -235,6 +235,26 @@ describe("createEditorUi with every field given", () => {
         expect(surfaces.store.getState().open).toBeNull();
         expect(() => surfaces.open("release-notes")).toThrow(/"release-notes"/);
     });
+
+    it("closes a surface named while it is open, and tells subscribers only of changes", () => {
+        const { surfaces } = editorUi;
+        surfaces.close();
+        const seen: (string | null)[] = [];
+        const unsubscribe = surfaces.store.subscribe((state) => seen.push(state.open));
+        try {
+            surfaces.close();
+            surfaces.open("command-palette");
+            surfaces.open("command-palette");
+            surfaces.close("preferences");
+            surfaces.close("command-palette");
+            surfaces.close("command-palette");
+            surfaces.close();
+            expect(seen).toEqual(["command-palette", null]);
+            expect(surfaces.store.getState().open).toBeNull();
+        } finally {
+            unsubscribe();
+        }
+    });
 });
 
 describe("createEditorUi hands every module map to its registry (SPEC §1.3)", () => {

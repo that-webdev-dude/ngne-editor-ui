@@ -1,3 +1,6 @@
+import { readdirSync, readFileSync } from "node:fs";
+import { join, relative } from "node:path";
+import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type * as MessagesModule from "../../src/ui/messages/index.ts";
 import type * as PlatformModule from "../../src/ui/platform/index.ts";
@@ -178,5 +181,35 @@ describe("storage failures", () => {
         const local = memoryStorage();
         vi.stubGlobal("localStorage", local);
         expect(storage.browserStorage()).toBe(local);
+    });
+});
+
+describe("browser storage access (SPEC §6)", () => {
+    const ROOT = fileURLToPath(new URL("../../", import.meta.url));
+    const STORAGE_MODULE = "src/ui/platform/storage.ts";
+
+    /** Every TypeScript source file under src/, as a path from the repository root. */
+    const sourceFiles = () =>
+        readdirSync(join(ROOT, "src"), { recursive: true, withFileTypes: true })
+            .filter((entry) => entry.isFile() && /\.tsx?$/.test(entry.name))
+            .map((entry) =>
+                relative(ROOT, join(entry.parentPath, entry.name)).replaceAll("\\", "/"),
+            );
+
+    /** A file's code without its comments, which may name the storage. */
+    const code = (file: string) =>
+        readFileSync(join(ROOT, file), "utf8")
+            .replace(/\/\*[\s\S]*?\*\//g, "")
+            .replace(/\/\/.*$/gm, "");
+
+    it("goes through src/ui/platform/storage.ts only: no other module names the browser's", () => {
+        const files = sourceFiles();
+        expect(files).toContain(STORAGE_MODULE);
+        const offenders = files.filter(
+            (file) =>
+                file !== STORAGE_MODULE && /\b(localStorage|sessionStorage)\b/.test(code(file)),
+        );
+        expect(offenders).toEqual([]);
+        expect(/\blocalStorage\b/.test(code(STORAGE_MODULE))).toBe(true);
     });
 });

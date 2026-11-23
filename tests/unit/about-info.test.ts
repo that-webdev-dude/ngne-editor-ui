@@ -124,6 +124,19 @@ describe("the About command", () => {
         expect(first.config.about).toBe(INFO);
     });
 
+    it("copies nothing when it opens the dialog: Copy version info does, when asked", async () => {
+        const writeText = vi.fn(async () => undefined);
+        vi.stubGlobal("navigator", { clipboard: { writeText }, userAgent: "TestAgent/1.0" });
+        try {
+            const instance = editor();
+            await instance.commands.get(ABOUT_COMMAND)!.run();
+            expect(instance.surfaces.store.getState().open).toBe("about");
+            expect(writeText).not.toHaveBeenCalled();
+        } finally {
+            vi.unstubAllGlobals();
+        }
+    });
+
     it("is listed by the command palette, under Help", () => {
         const { commands } = editor();
         const [entry] = paletteEntries(commands.list(), BASE.menus, [], "about");

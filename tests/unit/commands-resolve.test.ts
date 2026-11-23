@@ -342,6 +342,11 @@ for (const { name, contexts } of EDITORS) {
                 expect(resolved(registry, "1", environment)).toBe("canvas:zoom-1");
                 expect(resolved(registry, "Ctrl+S", environment)).toBe("global:save");
             }
+            // An item of the focus context's region: the region binds none of these chords, so
+            // they fall through to canvas and global.
+            expect(resolved(registry, "B", CELL, [focus])).toBe("canvas:pencil");
+            expect(resolved(registry, "1", CELL, [focus])).toBe("canvas:zoom-1");
+            expect(resolved(registry, "Ctrl+S", CELL, [focus])).toBe("global:save");
         });
 
         it("gives a select its typeahead characters and still runs modified chords", () => {
