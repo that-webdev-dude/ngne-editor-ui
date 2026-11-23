@@ -456,6 +456,7 @@ const API: Record<string, readonly string[]> = {
         "GalleryTheme",
         "useGalleryTheme",
     ],
+    "@ngne/editor-ui/gallery.css": [],
 };
 
 type Target = string | { types: string; default: string };
@@ -653,6 +654,7 @@ describe("API surface", () => {
             "package.json",
         ]);
         expect(files).toContain("dist/styles.css");
+        expect(files).toContain("dist/gallery.css");
     }, 60_000);
 
     it("installs every subpath's files from the tarball, under dist/", () => {
@@ -697,15 +699,21 @@ describe("API surface", () => {
         expect(resolved["@ngne/editor-ui"]?.names).toContain("createEditorUi");
     }, 120_000);
 
-    it("ships styles.css with every stylesheet under src/, each whole", () => {
-        const entry = readFileSync(installedFile("./styles.css", "default")!, "utf8");
+    it("ships every stylesheet under src/, each whole: the gallery's in gallery.css, the rest in styles.css", () => {
+        const styles = readFileSync(installedFile("./styles.css", "default")!, "utf8");
+        const gallery = readFileSync(installedFile("./gallery.css", "default")!, "utf8");
         const stylesheets = readdirSync(join(ROOT, "src"), { recursive: true, withFileTypes: true })
             .filter((file) => file.isFile() && file.name.endsWith(".css"))
             .map((file) => slash(relative(ROOT, join(file.parentPath, file.name))));
         expect(stylesheets.length).toBeGreaterThan(10);
+        expect(stylesheets).toContain("src/ui/gallery/gallery.css");
         for (const path of stylesheets) {
+            const [entry, other] = path.startsWith("src/ui/gallery/")
+                ? [gallery, styles]
+                : [styles, gallery];
             expect(entry, path).toContain(`/* ${path} */\n`);
             expect(entry, path).toContain(readFileSync(join(ROOT, path), "utf8").trimEnd());
+            expect(other, path).not.toContain(`/* ${path} */\n`);
         }
     });
 });

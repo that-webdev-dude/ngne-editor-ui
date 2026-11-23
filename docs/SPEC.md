@@ -95,9 +95,12 @@ The package has no frame budgets of its own; it must not move the apps' (BRIEF �
   `dist/` tree runs unbundled in Node (build helpers) and in the apps' bundlers alike. Three
   `tsc` projects build it, one per runtime: UI, Model and Colour with the DOM library; Worker
   with the WebWorker library; Build with Node's types.
-- CSS entry: `dist/styles.css` holds `src/styles/tokens.css`, then `src/styles/base.css`, then
+- CSS entries: `dist/styles.css` holds `src/styles/tokens.css`, then `src/styles/base.css`, then
   every other stylesheet under `src/` in path order (UTF-16 code units), each after a comment
-  naming it. A stylesheet joins by its path; no list is edited. Package modules import no CSS.
+  naming it. The exception is the gallery's: every stylesheet under `src/ui/gallery/` goes to
+  `dist/gallery.css` instead, in path order, each after a comment naming it, so an app that
+  does not mount the gallery ships none of its styles (§12). A stylesheet joins its entry by
+  its path; no list is edited. Package modules import no CSS.
 - Development toolchain, pinned exactly: `@axe-core/playwright` 4.13.0, `@eslint/js` 10.0.1,
   `@playwright/test` 1.64.0, `@types/node` 24.19.2, `@types/react` 19.3.0, `@types/react-dom`
   19.3.0, `@vitejs/plugin-react` 6.1.2, `@vitest/coverage-v8` 5.0.3, `eslint` 10.12.0,
@@ -110,7 +113,7 @@ The package has no frame budgets of its own; it must not move the apps' (BRIEF �
 | Subpath | Layer | Contents |
 | --- | --- | --- |
 | `@ngne/editor-ui` | UI | `createEditorUi`, `UiRoot`, `EditorUiConfig` and the types of §5; `persistedNames`, the theme and recent-commands store factories and `DEFAULT_THEME` (§5) |
-| `@ngne/editor-ui/styles.css` | Styles | `tokens.css`, `base.css` and every component stylesheet, in one entry |
+| `@ngne/editor-ui/styles.css` | Styles | `tokens.css`, `base.css` and every component stylesheet but the gallery's, in one entry |
 | `@ngne/editor-ui/styles/check` | Build | `checkStylesheets` (§9.2) |
 | `@ngne/editor-ui/primitives` | UI | §9.1 |
 | `@ngne/editor-ui/focus` | UI | Modality, inert outside, menu opener, return focus |
@@ -127,6 +130,7 @@ The package has no frame budgets of its own; it must not move the apps' (BRIEF �
 | `@ngne/editor-ui/licences/build` | Build | §11 |
 | `@ngne/editor-ui/colour` | Colour | `hex`, `hsv`, `rgba`, `oklab`, `contrast`, `#rrggbb` text format |
 | `@ngne/editor-ui/gallery` | UI | §12 |
+| `@ngne/editor-ui/gallery.css` | Styles | The gallery's stylesheets, imported after `styles.css` by an app's development gallery route only (§12) |
 
 A worker or the build never loads React or the DOM: their subpaths import only Model or
 `node:*`.
@@ -401,6 +405,11 @@ closing-popover hook, as the sprite editor at the cut.
 
 - Renders every export of §4 in both themes, with the app's own entries appended when an app
   mounts it (`<Gallery entries={…} />`).
+- Its styles are `@ngne/editor-ui/gallery.css`, not in `styles.css` (§4). An app mounts the
+  gallery on a development route only: the route's module, loaded only with that route,
+  imports `@ngne/editor-ui/gallery.css` after `styles.css` and renders `<Gallery>`; no other
+  module of the app imports it, so the app's production bundle holds no gallery rule. This
+  repository's gallery page does the same; the demo editor's page imports `styles.css` only.
 - This repository's Pages site serves the gallery from each release tag (BRIEF D13).
 - The frame shows one theme at a time, switched in its header for the whole document (so
   surfaces rendered outside the frame follow it), with one section per entry and a link to

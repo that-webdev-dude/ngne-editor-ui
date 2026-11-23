@@ -89,7 +89,8 @@
         "./gallery": {
             "types": "./dist/ui/gallery/index.d.ts",
             "default": "./dist/ui/gallery/index.js"
-        }
+        },
+        "./gallery.css": "./dist/gallery.css"
     },
     "scripts": {
         "build": "node scripts/clean.ts && tsc -p tsconfig.lib.json && tsc -p tsconfig.worker.json && tsc -p tsconfig.build.json && node scripts/build-assets.ts",

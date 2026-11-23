@@ -93,9 +93,25 @@ describe("gallery imports", () => {
             expect.arrayContaining([
                 "@ngne/editor-ui/gallery",
                 "@ngne/editor-ui/styles.css",
+                "@ngne/editor-ui/gallery.css",
                 "@ngne/editor-ui/licences/build",
             ]),
         );
+    });
+
+    it("load the gallery's stylesheet in the gallery page's entry only, after styles.css", () => {
+        const name = (file: string) => relative(GALLERY, file).replaceAll("\\", "/");
+        const loading = site
+            .filter(({ file, text }) =>
+                specifiersOf(file, text).includes("@ngne/editor-ui/gallery.css"),
+            )
+            .map(({ file }) => name(file));
+        expect(loading).toEqual(["main.tsx"]);
+        const page = site.find(({ file }) => name(file) === "main.tsx")!;
+        const used = specifiersOf(page.file, page.text);
+        const styles = used.indexOf("@ngne/editor-ui/styles.css");
+        expect(styles).toBeGreaterThanOrEqual(0);
+        expect(used.indexOf("@ngne/editor-ui/gallery.css")).toBeGreaterThan(styles);
     });
 
     it("fail an import of src/, outside gallery/, or of a subpath the package does not export", () => {

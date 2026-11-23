@@ -21,10 +21,11 @@ Binding for every contributor. Docs index: [docs/README.md](docs/README.md).
    (proprietary, source-available) or under no known licence is never copied, ported or
    translated: its program's behaviour is reproduced from manuals, file formats and observed
    use.
-5. Package modules import no CSS. A stylesheet under `src/` joins the package's one CSS entry
+5. Package modules import no CSS. A stylesheet under `src/` joins the package's CSS entry
    (`@ngne/editor-ui/styles.css`) by its path, after `src/styles/tokens.css` and
-   `src/styles/base.css` ([docs/SPEC.md](docs/SPEC.md) §4); only `src/styles/tokens.css` holds
-   raw colours.
+   `src/styles/base.css`; one under `src/ui/gallery/` joins the gallery's entry
+   (`@ngne/editor-ui/gallery.css`) instead ([docs/SPEC.md](docs/SPEC.md) §4). Only
+   `src/styles/tokens.css` holds raw colours.
 
 ## Quality
 
