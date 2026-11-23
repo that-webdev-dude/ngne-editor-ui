@@ -300,7 +300,12 @@ only the stored field keeps its old name.
   fields' input, `hint()` the hint, `subscribe(listener)`), as both editors fed their bars from
   their stores; the bar renders again only when a shown text changes. The hint is
   `{ text, kind }`: `feedback` (transient tool feedback) in `--warn`, `hint` in the bar's
-  colour. Without `status` the fields read `undefined` and no hint is shown.
+  colour. Without `status` the fields read `undefined` and no hint is shown. A field's
+  `action` is its command as a quiet button right after the field's text ("Fit" after the
+  zoom), shown while the field has text, with the command's title. The button carries
+  `data-status-action="<field id>"`: the field's own id, the one in its `data-status`, never
+  the command's id or name. The marker is a public DOM hook; an editor's tests locate the
+  button and order the bar's parts by it.
 - **Tab strip (BRIEF D18):** presentational. The app passes items (`id`, `label`, `tooltip`,
   `dirty`), the active id, a leading label (project name, with its unsaved marker, as the
   tilemap editor shows it) and callbacks (`activate`, `close`, `move`); the strip owns metrics,

@@ -80,6 +80,29 @@ test("the fields follow the registry order at their reserved widths, the hint on
     expect(errors).toEqual([]);
 });
 
+test("a field's action button carries the field's id as its marker, not its command's", async ({
+    page,
+}) => {
+    // Found by its role and title, the Fit to Window button of the zoom field (command
+    // `demo.view.fit`) is marked with the field's id, the public DOM hook of SPEC §8.
+    const button = bar(page).getByRole("button", { name: "Fit to Window" });
+    await expect(button).toHaveAttribute("data-status-action", "zoom");
+    await expect(bar(page).locator("[data-status-action]")).toHaveCount(1);
+    await expect(bar(page).locator('[data-status-action="demo.view.fit"]')).toHaveCount(0);
+    await expect(bar(page).locator('[data-status-action="fit"]')).toHaveCount(0);
+
+    // The marker names the field the button follows: the field's own `data-status`.
+    const marks = await bar(page)
+        .locator("[data-status-action]")
+        .evaluateAll((nodes) =>
+            nodes.map((node) => ({
+                marker: node.getAttribute("data-status-action"),
+                field: node.previousElementSibling?.getAttribute("data-status") ?? null,
+            })),
+        );
+    expect(marks).toEqual([{ marker: "zoom", field: "zoom" }]);
+});
+
 test("a field's value change moves none of the others", async ({ page }) => {
     const start = await positions(page);
     const canvas = viewport(page);
