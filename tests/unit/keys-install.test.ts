@@ -1,11 +1,25 @@
 import { describe, expect, it } from "vitest";
-import { createCommandRegistry, installKeymap } from "../../src/ui/commands/index.ts";
-import type { CommandRegistry, KeyContext, KeyEnvironment } from "../../src/ui/commands/index.ts";
+import {
+    activeKeyContexts,
+    createCommandRegistry,
+    createKeyContextStore,
+    installKeymap,
+    setKeyContext,
+} from "../../src/ui/commands/index.ts";
+import type {
+    CommandRegistry,
+    KeyContext,
+    KeyEnvironment,
+    KeymapDocument,
+} from "../../src/ui/commands/index.ts";
+import { createEditorUi } from "../../src/ui/index.ts";
+import { TEST_EDITOR } from "./support/editorUi.ts";
 
 // Keymap installation (SPEC §7.2): the keyboard listener resolves each key in the environment
 // and active contexts of the moment, runs what it resolves to and prevents the browser default
 // of a key it takes or suppresses; hold bindings run once and are released on key up, on blur
-// and on uninstall; failures reach the error handler.
+// and on uninstall; failures reach the error handler. The active contexts of an instance come
+// from its state-context store, the editor's own when it passes one (SPEC §5 `sources`).
 
 /** Focus on the viewport, nothing open. */
 const VIEWPORT: KeyEnvironment = {
@@ -262,5 +276,52 @@ describe("keyboard listener", () => {
         await Promise.resolve();
         await Promise.resolve();
         expect(errors).toEqual(["throws: Error: sync", "rejects: Error: async"]);
+    });
+});
+
+describe("keyboard listener of an instance with the editor's own state-context store", () => {
+    it("resolves a chord bound in a state context of that store while it is on", () => {
+        const keyContextState = createKeyContextStore(["gesture"]);
+        const calls: string[] = [];
+        const mark = (id: string, context: "gesture" | "canvas") => ({
+            id,
+            title: id,
+            shortcut: "J",
+            context,
+            run: () => void calls.push(id),
+        });
+        const editorUi = createEditorUi({
+            ...TEST_EDITOR,
+            keyContexts: { order: ["gesture"], state: ["gesture"] },
+            modules: {
+                commands: {
+                    "/src/marks.commands.ts": {
+                        commands: [mark("gesture-mark", "gesture"), mark("canvas-mark", "canvas")],
+                    },
+                },
+            },
+            sources: { keyContextState },
+        });
+        // Nothing focused on the page: the store alone makes `gesture` active.
+        const page: KeymapDocument = { activeElement: null, querySelector: () => null };
+        const target = new EventTarget();
+        const uninstall = installKeymap({
+            registry: editorUi.commands,
+            target,
+            environment: () => VIEWPORT,
+            activeContexts: () =>
+                activeKeyContexts(
+                    page,
+                    editorUi.config.keyContexts,
+                    editorUi.keyContextState.getState(),
+                ),
+        });
+        dispatch(target, "keydown", "j");
+        setKeyContext(keyContextState, "gesture", true);
+        dispatch(target, "keydown", "j");
+        setKeyContext(keyContextState, "gesture", false);
+        dispatch(target, "keydown", "j");
+        uninstall();
+        expect(calls).toEqual(["canvas-mark", "gesture-mark", "canvas-mark"]);
     });
 });

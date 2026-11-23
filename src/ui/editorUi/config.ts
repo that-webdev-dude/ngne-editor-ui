@@ -1,14 +1,20 @@
 import type { ComponentType } from "react";
+import type { StoreApi } from "zustand/vanilla";
 import { keyContextOrder } from "../../model/commands/contexts.js";
 import { menuBarProblems } from "../../model/commands/menuModel.js";
 import type { Command, CommandModule } from "../../model/commands/types.js";
+import { compareCodeUnits } from "../../model/modules.js";
 import type { ModuleMap } from "../../model/modules.js";
 import type { ContextBarContentModule } from "../../model/registries/contextBar.js";
 import type { DockPanelModule } from "../../model/registries/dock.js";
 import type { StatusFieldModule } from "../../model/registries/statusFields.js";
 import type { OverlayLayerModule } from "../../model/overlay/layers.js";
 import type { ToolBase, ToolModule } from "../../model/tools/types.js";
+import { commandRunnerState } from "../commands/commandRunner.js";
+import type { CommandRunner } from "../commands/commandRunner.js";
+import type { KeyContextState } from "../commands/keyContextState.js";
 import type { CommandDialogModule } from "../messages/dialogRegistry.js";
+import type { BottomRegionState } from "../shell/bottomRegion.js";
 import { SHELL_REGIONS } from "../shell/regions.js";
 
 // What an editor passes to `createEditorUi` (SPEC §5): its identity, its lists and its hooks,
@@ -83,6 +89,23 @@ export interface CommandRefreshSource {
     subscribe(listener: () => void): () => void;
 }
 
+/**
+ * State the editor creates in a module of its own, one that imports no instance, so the
+ * modules the instance's maps load reach it without importing the instance (SPEC §5). The
+ * instance uses each source given instead of creating its own.
+ */
+export interface EditorUiSources {
+    /**
+     * The state contexts, from `createKeyContextStore` over `keyContexts.state`; `createEditorUi`
+     * checks that it holds those contexts and no other.
+     */
+    readonly keyContextState?: StoreApi<KeyContextState<string>>;
+    /** Whether the bottom region is shown, from `createBottomRegionStore`. */
+    readonly bottomRegion?: StoreApi<BottomRegionState>;
+    /** Runs the instance's commands, from `createCommandRunner`; one instance holds it. */
+    readonly commandRunner?: CommandRunner;
+}
+
 /** The configuration of an editor's interface (SPEC §5). */
 export interface EditorUiConfig<
     Menu extends string = string,
@@ -115,6 +138,8 @@ export interface EditorUiConfig<
     beforeRun?(command: Command<Menu, Context>): void;
     /** Surfaces of the editor beside the command palette and shortcut sheet, by id. */
     readonly surfaces?: Readonly<Record<string, ComponentType>>;
+    /** State the editor creates itself; the default is none: the instance creates its own. */
+    readonly sources?: EditorUiSources;
 }
 
 /** The configuration with every optional field resolved to its value or its default. */
@@ -137,6 +162,7 @@ export interface ResolvedEditorUiConfig<
     commandGate(command: Command<Menu, Context>): boolean;
     beforeRun(command: Command<Menu, Context>): void;
     readonly surfaces: Readonly<Record<string, ComponentType>>;
+    readonly sources: EditorUiSources;
 }
 
 /**
@@ -235,13 +261,83 @@ function resolveSurfaces(
     return { ...surfaces };
 }
 
+/** Whether `value` has what the instance calls on a store. */
+function isStore(value: unknown): value is StoreApi<unknown> {
+    if (typeof value !== "object" || value === null) return false;
+    const store = value as Record<string, unknown>;
+    return ["getState", "setState", "subscribe"].every((name) => typeof store[name] === "function");
+}
+
+const listed = (names: readonly string[]): string =>
+    names.length === 0 ? "none" : `"${[...names].sort(compareCodeUnits).join(", ")}"`;
+
+function checkKeyContextSource(source: unknown, stateContexts: readonly string[]): void {
+    const field = "sources.keyContextState";
+    if (!isStore(source)) {
+        fail(field, "is not a store; create it with createKeyContextStore(keyContexts.state).");
+    }
+    const state = source.getState();
+    const flags = (typeof state === "object" && state !== null ? state : {}) as Record<
+        string,
+        unknown
+    >;
+    const held = Object.keys(flags);
+    const same =
+        held.length === stateContexts.length && stateContexts.every((c) => Object.hasOwn(flags, c));
+    if (!same) {
+        fail(
+            field,
+            `holds the contexts ${listed(held)}; keyContexts.state lists ${listed(stateContexts)}.`,
+        );
+    }
+    const unset = stateContexts.find((context) => typeof flags[context] !== "boolean");
+    if (unset !== undefined) fail(field, `gives "${unset}" neither true nor false.`);
+}
+
+function checkBottomRegionSource(source: unknown): void {
+    const state: unknown = isStore(source) ? source.getState() : undefined;
+    if (typeof (state as { visible?: unknown } | undefined)?.visible !== "boolean") {
+        fail(
+            "sources.bottomRegion",
+            "is not a store of the bottom region's visibility; create it with " +
+                "createBottomRegionStore().",
+        );
+    }
+}
+
+function checkCommandRunner(source: unknown): void {
+    const state = commandRunnerState(source);
+    if (state === "unknown") {
+        fail("sources.commandRunner", "is not a runner; create it with createCommandRunner().");
+    }
+    if (state === "connected") {
+        fail("sources.commandRunner", "is held by another editor UI instance; create one each.");
+    }
+}
+
+/** The state the editor passes (SPEC §5 `sources`); throws naming a source that is malformed. */
+function resolveSources(
+    sources: EditorUiSources | undefined,
+    stateContexts: readonly string[],
+): EditorUiSources {
+    if (sources === undefined) return {};
+    if (typeof sources !== "object" || sources === null) {
+        fail("sources", "is an object of the editor's own stores, or left out.");
+    }
+    const { keyContextState, bottomRegion, commandRunner } = sources;
+    if (keyContextState !== undefined) checkKeyContextSource(keyContextState, stateContexts);
+    if (bottomRegion !== undefined) checkBottomRegionSource(bottomRegion);
+    if (commandRunner !== undefined) checkCommandRunner(commandRunner);
+    return { keyContextState, bottomRegion, commandRunner };
+}
+
 const allEnabled = (): boolean => true;
 const nothing = (): void => undefined;
 
 /**
  * The configuration with its defaults (SPEC §5). Throws an error naming the field when a
- * required field is missing, the menu bar has no `View` or does not end with `Help`, or a key
- * context is unknown.
+ * required field is missing, the menu bar has no `View` or does not end with `Help`, a key
+ * context is unknown, or a source the editor passes is not what its factory creates.
  */
 export function resolveEditorUiConfig<
     Menu extends string,
@@ -255,12 +351,13 @@ export function resolveEditorUiConfig<
     checkIdentity(config as EditorUiConfig<string, string>);
     checkMenus(config.menus);
     const modules = config.modules ?? {};
+    const keyContexts = resolveKeyContexts(config.keyContexts);
     return {
         id: config.id,
         productName: config.productName,
         about: config.about,
         menus: [...config.menus],
-        keyContexts: resolveKeyContexts(config.keyContexts),
+        keyContexts,
         bottomRegion: resolveBottomRegion(config.bottomRegion),
         railFooterHeight: resolveRailFooterHeight(config.railFooterHeight),
         modules: {
@@ -276,5 +373,6 @@ export function resolveEditorUiConfig<
         commandGate: config.commandGate?.bind(config) ?? allEnabled,
         beforeRun: config.beforeRun?.bind(config) ?? nothing,
         surfaces: resolveSurfaces(config.surfaces),
+        sources: resolveSources(config.sources, keyContexts.state),
     };
 }

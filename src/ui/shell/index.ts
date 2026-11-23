@@ -1,6 +1,7 @@
 // Entry module of `@ngne/editor-ui/shell` (SPEC §4, §8): the `AppShell` frame with its slots,
 // the layout maths and the instance's layout and bottom-region stores, with the layout store's
-// factory over a storage the caller passes (SPEC §5), the F6 regions and the package commands
+// factory over a storage the caller passes and the bottom-region store's factory, whose store
+// an editor may pass as its own (SPEC §5), the F6 regions and the package commands
 // of the shell; the dock-panel, context-bar and status-field registries
 // (SPEC §1.3) and what the status bar reads; the tool base and the tool registry, generic over
 // the editor's tool type (BRIEF D18), the option values and what the tool rail and the context
@@ -59,8 +60,8 @@ export type {
 
 export { AppShell, useWindowTooSmall } from "./AppShell.js";
 export type { AppShellProps } from "./AppShell.js";
-export { setBottomRegionVisible } from "./bottomRegion.js";
-export type { BottomRegionState } from "./bottomRegion.js";
+export { createBottomRegionStore, setBottomRegionVisible } from "./bottomRegion.js";
+export type { BottomRegionState, BottomRegionTarget } from "./bottomRegion.js";
 export { bottomRegionCommand } from "./bottomRegion.commands.js";
 export { createLayoutStore } from "./layoutStore.js";
 export type { LayoutState } from "./layoutStore.js";

@@ -1,5 +1,5 @@
-// Entry module of `@ngne/editor-ui` (SPEC §4, §5): the editor UI instance, its configuration,
-// `UiRoot`, the theme store, the persisted names of an editor's id, and the factories of the
+// Entry module of `@ngne/editor-ui` (SPEC §4, §5): the editor UI instance, its configuration
+// with the sources an editor may pass, `UiRoot`, the theme store, the persisted names of an editor's id, and the factories of the
 // theme and recent-commands stores the instance builds, over a storage the caller passes.
 
 export { persistedNames } from "../model/persistedNames.js";
@@ -11,6 +11,7 @@ export type {
     EditorUiConfig,
     EditorUiKeyContexts,
     EditorUiModules,
+    EditorUiSources,
     ResolvedEditorUiConfig,
 } from "./editorUi/config.js";
 export { useEditorUi } from "./editorUi/context.js";

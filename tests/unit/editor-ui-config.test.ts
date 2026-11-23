@@ -1,12 +1,15 @@
 import { describe, expect, it } from "vitest";
+import { createStore } from "zustand/vanilla";
 import { RegistrationError } from "../../src/model/modules.ts";
+import { createCommandRunner, createKeyContextStore } from "../../src/ui/commands/index.ts";
 import { PACKAGE_COMMAND_SOURCE } from "../../src/ui/editorUi/packageCommands.ts";
 import { createEditorUi } from "../../src/ui/index.ts";
 import type { AppInfo, EditorUiConfig } from "../../src/ui/index.ts";
+import { createBottomRegionStore } from "../../src/ui/shell/index.ts";
 
 // The configuration of `createEditorUi` (SPEC §5): the default of every optional field, the
-// module maps handed to their registries (SPEC §1.3), and the configurations that stop the
-// editor at startup with an error naming the field.
+// module maps handed to their registries (SPEC §1.3), the sources of state an editor passes,
+// and the configurations that stop the editor at startup with an error naming the field.
 
 const ABOUT: AppInfo = {
     packageName: "ngne-test-editor",
@@ -27,6 +30,9 @@ const BASE: EditorUiConfig<(typeof MENUS)[number]> = {
 };
 
 const Empty = () => null;
+
+/** Key contexts with one state context, `gesture`. */
+const STATE = { order: ["gesture"], state: ["gesture"] };
 
 /** `BASE` with `changes`, typed loosely so a test can pass what the types forbid. */
 const withConfig = (changes: Record<string, unknown>) =>
@@ -87,6 +93,57 @@ describe("createEditorUi defaults (SPEC §5)", () => {
         expect(config.surfaces).toEqual({});
         expect(editorUi.surfaces.ids).toEqual(["command-palette", "shortcut-sheet", "about"]);
         expect(editorUi.surfaces.store.getState().open).toBeNull();
+    });
+
+    it("sources: none; the instance's own stores, no context on and the bottom region shown", () => {
+        expect(config.sources).toEqual({});
+        expect(editorUi.keyContextState.getState()).toEqual({});
+        expect(editorUi.bottomRegion.getState()).toEqual({ visible: true });
+    });
+});
+
+describe("createEditorUi with the editor's own sources (SPEC §5 sources)", () => {
+    const keyContextState = createKeyContextStore(["gesture", "floating"]);
+    const bottomRegion = createBottomRegionStore();
+    const commandRunner = createCommandRunner();
+    const ran: string[] = [];
+    const editorUi = createEditorUi({
+        ...BASE,
+        keyContexts: { order: ["gesture", "floating"], state: ["gesture", "floating"] },
+        bottomRegion: { id: "timeline", label: "Timeline" },
+        modules: {
+            commands: {
+                "/src/a.commands.ts": {
+                    commands: [{ id: "a.run", title: "A", run: () => void ran.push("a.run") }],
+                },
+            },
+        },
+        sources: { keyContextState, bottomRegion, commandRunner },
+    });
+
+    it("is accepted, and the instance holds the editor's stores instead of its own", () => {
+        expect(editorUi.config.sources).toEqual({ keyContextState, bottomRegion, commandRunner });
+        expect(editorUi.keyContextState).toBe(keyContextState);
+        expect(editorUi.bottomRegion).toBe(bottomRegion);
+    });
+
+    it("runs the instance's commands through the runner", () => {
+        expect(commandRunner.run("a.run")).toBe(true);
+        expect(commandRunner.run("a.missing")).toBe(false);
+        expect(ran).toEqual(["a.run"]);
+    });
+
+    it("takes each source on its own, and creates the others", () => {
+        const store = createBottomRegionStore();
+        const partial = createEditorUi({ ...BASE, sources: { bottomRegion: store } });
+        expect(partial.bottomRegion).toBe(store);
+        expect(partial.keyContextState.getState()).toEqual({});
+    });
+});
+
+describe("a command runner no instance holds", () => {
+    it("throws when it runs a command, naming the field it is passed in", () => {
+        expect(() => createCommandRunner().run("a.run")).toThrow(/config\.sources\.commandRunner/);
     });
 });
 
@@ -277,10 +334,72 @@ describe("createEditorUi refuses an invalid configuration at startup, naming the
             { surfaces: { "shortcut-sheet": Empty } },
             /config\.surfaces .*"shortcut-sheet"/,
         ],
+        ["sources that are not an object", { sources: 1 }, /config\.sources is an object/],
+        [
+            "a state-context source that is not a store",
+            { keyContexts: STATE, sources: { keyContextState: { gesture: false } } },
+            /config\.sources\.keyContextState is not a store/,
+        ],
+        [
+            "a state-context source over other contexts",
+            {
+                keyContexts: STATE,
+                sources: { keyContextState: createKeyContextStore(["floating"]) },
+            },
+            /config\.sources\.keyContextState holds the contexts "floating"; .* lists "gesture"/,
+        ],
+        [
+            "a state-context source with a context more",
+            {
+                keyContexts: STATE,
+                sources: { keyContextState: createKeyContextStore(["gesture", "floating"]) },
+            },
+            /config\.sources\.keyContextState holds the contexts "floating, gesture"/,
+        ],
+        [
+            "a state-context source whose context is not on or off",
+            {
+                keyContexts: STATE,
+                sources: { keyContextState: createStore(() => ({ gesture: "on" })) },
+            },
+            /config\.sources\.keyContextState gives "gesture" neither true nor false/,
+        ],
+        [
+            "a bottom-region source that is not a store",
+            { sources: { bottomRegion: { visible: true } } },
+            /config\.sources\.bottomRegion is not a store/,
+        ],
+        [
+            "a bottom-region source without the visibility",
+            { sources: { bottomRegion: createStore(() => ({ shown: true })) } },
+            /config\.sources\.bottomRegion is not a store/,
+        ],
+        [
+            "a command runner that createCommandRunner did not make",
+            { sources: { commandRunner: { run: () => true } } },
+            /config\.sources\.commandRunner is not a runner/,
+        ],
     ];
 
     it.each(cases)("%s", (_what, changes, field) => {
         expect(() => createEditorUi(withConfig(changes))).toThrow(field);
+    });
+
+    it("a command runner another instance holds", () => {
+        const commandRunner = createCommandRunner();
+        createEditorUi(withConfig({ sources: { commandRunner } }));
+        expect(() => createEditorUi(withConfig({ sources: { commandRunner } }))).toThrow(
+            /config\.sources\.commandRunner is held by another editor UI instance/,
+        );
+    });
+
+    it("a configuration that fails leaves its command runner free for the next one", () => {
+        const commandRunner = createCommandRunner();
+        const broken = { "/src/broken.dock.tsx": {} };
+        expect(() =>
+            createEditorUi(withConfig({ modules: { dock: broken }, sources: { commandRunner } })),
+        ).toThrow(RegistrationError);
+        expect(() => createEditorUi(withConfig({ sources: { commandRunner } }))).not.toThrow();
     });
 
     it("a command bound in a context the editor does not have, naming its module", () => {

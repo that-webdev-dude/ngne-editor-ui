@@ -151,7 +151,15 @@ const editorUi = createEditorUi({
     commandGate: (command) => boolean,        // e.g. "no project open" allow-list
     beforeRun: (command) => void,             // e.g. stop playback
     surfaces: { preferences: PreferencesDialog },
+    sources: { keyContextState, bottomRegion, commandRunner },   // from src/app/uiState.ts
 });
+```
+
+```ts
+// src/app/uiState.ts: imports no instance, so every module the instance's maps load may import it
+export const keyContextState = createKeyContextStore(["gesture", "floating"]);  // keyContexts.state
+export const bottomRegion = createBottomRegionStore();
+export const commandRunner = createCommandRunner();
 ```
 
 | Field | Meaning | Default |
@@ -168,6 +176,7 @@ const editorUi = createEditorUi({
 | `commandGate` | Disables the app's commands the gate rejects; the package's commands are outside it, as they act without a document | All enabled |
 | `beforeRun` | Runs before every command | None |
 | `surfaces` | App surfaces beside the command palette and shortcut sheet | None |
+| `sources` | State the app creates in a module that imports no instance (`EditorUiSources`), used instead of the instance's own: `keyContextState` (`createKeyContextStore(keyContexts.state)`, `@ngne/editor-ui/commands`), `bottomRegion` (`createBottomRegionStore()`, `@ngne/editor-ui/shell`) and `commandRunner` (`createCommandRunner()`, `@ngne/editor-ui/commands`). Each is optional. `createEditorUi` throws naming the source for one its factory did not create, a state-context store that does not hold exactly the state contexts, each `true` or `false`, and a runner another instance holds | None: the instance creates its own stores |
 
 Persisted names keep their current values, so a migrating app keeps its users' data:
 
@@ -190,6 +199,17 @@ is the theme a missing or unknown stored value gives.
 
 The public API calls the bottom region "bottom" (`BOTTOM_HEIGHT`, `resolveBottomHeight`);
 only the stored field keeps its old name.
+
+`sources` lets the modules the instance's maps load (command, dialog, dock, tool, overlay
+modules and what they import) switch a state context, show or hide the bottom region and run
+a command without importing the app's instance module, which imports them first. The app
+creates the sources in a module of its own and passes them; the instance reads and writes
+them, refreshes its commands when one changes, and its keymap resolves with them (§7.2, §8). A
+write that changes nothing refreshes nothing. `commandRunner.run(id)` runs the command `id` of
+the instance that holds the runner, as `runCommand` does (§7.1): false when the command does
+not exist or is disabled, a failure reported by an error toast. It throws while no instance
+holds it; one instance holds it, connected once every registry is built, so a configuration
+that fails leaves it free. An app that passes no sources behaves as one before them.
 
 ## 6. Messages, focus and platform
 
@@ -249,8 +269,11 @@ only the stored field keeps its old name.
   environment is read from the page: the viewport target (`data-viewport-focus`), an open
   overlay (a Radix menu, dialog or list, or `data-keymap-overlay`), a text field, and the
   focused control's native keys and typeahead. A focus context is active while focus is inside
-  an element its selector matches; a state context while it is on in the instance's store,
-  switched by `setKeyContext(editorUi, context, active)`, which refreshes the commands.
+  an element its selector matches; a state context while it is on in the instance's store
+  (`editorUi.keyContextState`): the app's `sources.keyContextState` when it passes one (§5),
+  else the instance's own, all off at startup. `setKeyContext(target, context, active)` switches
+  it, with `target` the instance or the store itself, and the change refreshes the commands; it
+  throws for a context that is not a state context.
 - A key runs the first enabled command bound in the first applicable context that binds it.
   `canvas` takes a native key only while the viewport has focus. A key the focused control
   handles natively, or a typed character during typeahead, is left to the control. A browser
@@ -278,9 +301,11 @@ only the stored field keeps its old name.
   state; the app turns the keymap off meanwhile through `UiRoot`'s `keymap` prop
   (`useWindowTooSmall()`), as the sprite editor did.
 - **Bottom region:** the region's `data-region` is `bottomRegion.id` and its accessible name
-  the label. Whether it is shown is the instance's `editorUi.bottomRegion` store, shown at
-  every start and not persisted (`setBottomRegionVisible`). Tab toggles it while the viewport
-  has focus (`canvas`): the package command `view.` + the id in camel case, the id both editors
+  the label. Whether it is shown is the instance's `editorUi.bottomRegion` store, not
+  persisted: the app's `sources.bottomRegion` when it passes one (§5), else the instance's own,
+  shown at every start. `setBottomRegionVisible(target, visible)` shows or hides it, with
+  `target` the instance or the store itself; a change refreshes the commands. Tab toggles it
+  while the viewport has focus (`canvas`): the package command `view.` + the id in camel case, the id both editors
   gave it (`timeline` → `view.timeline`, `bottom-panel` → `view.bottomPanel`), titled
   "Hide <label>" or "Show <label>" by what it will do. It names no menu; an editor places it in
   View with a planned command of that id. An editor without a bottom region has no such

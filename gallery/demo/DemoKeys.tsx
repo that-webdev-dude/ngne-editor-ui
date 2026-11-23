@@ -1,14 +1,15 @@
-import { useEditorUi } from "@ngne/editor-ui";
 import { setKeyContext } from "@ngne/editor-ui/commands";
 import { Button, Dialog, Select, Toggle } from "@ngne/editor-ui/primitives";
 import { useState } from "react";
 import { useStore } from "zustand";
 import { keyLogStore } from "./keys.ts";
+import { keyContextState } from "./sources.ts";
 
 // The demo editor's keys section (SPEC §6, §7.2): a focusable viewport (`data-viewport-focus`),
 // a panel region (the `panel` focus context, inside the panel selector), a text field, a
 // select, a toggle for the `gesture` state context, a plain control, a dialog, and the key log.
-// A control outside the panel activated with the pointer returns the focus to the viewport.
+// A control outside the panel activated with the pointer returns the focus to the viewport. The
+// toggle switches the demo's own state-context store (`sources.ts`), which the instance holds.
 
 type Brush = "pencil" | "jitter" | "eraser";
 
@@ -21,8 +22,7 @@ const BRUSHES: readonly { value: Brush; label: string }[] = [
 const LAYERS = ["Background", "Ground", "Props"] as const;
 
 export function DemoKeys() {
-    const editorUi = useEditorUi();
-    const gesture = useStore(editorUi.keyContextState, (state) => state["gesture"] === true);
+    const gesture = useStore(keyContextState, (state) => state.gesture);
     const ran = useStore(keyLogStore, (state) => state.ran);
     const [brush, setBrush] = useState<Brush>("pencil");
     const [name, setName] = useState("");
@@ -35,7 +35,7 @@ export function DemoKeys() {
                     label="Gesture"
                     showLabel
                     pressed={gesture}
-                    onPressedChange={(next) => setKeyContext(editorUi, "gesture", next)}
+                    onPressedChange={(next) => setKeyContext(keyContextState, "gesture", next)}
                 />
                 <Button>Tool</Button>
                 <label className="ui-field">

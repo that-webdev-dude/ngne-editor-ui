@@ -4,9 +4,10 @@
 // and contexts (BRIEF D16). The UI part: the hooks that read commands and render again only
 // when what they read changed (SPEC §2 Command refresh), running a command with failures as
 // error toasts, the chord key cap and the context-menu entries; each reads the editor UI
-// instance `UiRoot` provides or takes the registry as an argument (SPEC §1.2). The keys: the
-// key environment read from the page, the state contexts of an instance, and the keymap
-// installation `UiRoot` makes (SPEC §7.2). The surfaces: the command palette, its trigger, the
+// instance `UiRoot` provides or takes the registry as an argument (SPEC §1.2), and the runner
+// an editor creates to run its instance's commands from the modules the instance loads (SPEC
+// §5 `sources`). The keys: the key environment read from the page, the state contexts of an
+// instance and their store's factory, and the keymap installation `UiRoot` makes (SPEC §7.2). The surfaces: the command palette, its trigger, the
 // shortcut sheet, the ids of the package commands that open them, and the host that shows the
 // open surface of an instance, the package's or the editor's (SPEC §7.1).
 
@@ -82,11 +83,13 @@ export type { ChordProps } from "./Chord.js";
 export { COMMAND_PALETTE_COMMAND } from "./commandPalette.commands.js";
 export { CommandPalette } from "./CommandPalette.js";
 export { CommandPaletteTrigger } from "./CommandPaletteTrigger.js";
+export { createCommandRunner } from "./commandRunner.js";
+export type { CommandRunner } from "./commandRunner.js";
 export { contextMenuEntries } from "./contextMenu.js";
 export { installKeymap } from "./installKeymap.js";
 export type { KeymapEvent, KeymapOptions, KeymapTarget } from "./installKeymap.js";
-export { setKeyContext } from "./keyContextState.js";
-export type { KeyContextState } from "./keyContextState.js";
+export { createKeyContextStore, setKeyContext } from "./keyContextState.js";
+export type { KeyContextState, KeyContextTarget } from "./keyContextState.js";
 export {
     activeKeyContexts,
     isTextField,

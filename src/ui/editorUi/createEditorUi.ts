@@ -18,6 +18,7 @@ import type { StatusField } from "../../model/registries/statusFields.js";
 import { createToolRegistry, registerToolModules } from "../../model/tools/registry.js";
 import type { ToolRegistry } from "../../model/tools/registry.js";
 import type { ToolBase } from "../../model/tools/types.js";
+import { connectCommandRunner } from "../commands/commandRunner.js";
 import { createKeyContextStore } from "../commands/keyContextState.js";
 import type { KeyContextState } from "../commands/keyContextState.js";
 import type { CommandDialogModule, CommandDialogs } from "../messages/dialogRegistry.js";
@@ -64,11 +65,18 @@ export interface EditorUi<
     readonly recentCommands: StoreApi<RecentCommandsState>;
     /** The shell's splitter sizes, kept under `<id>.layout`. */
     readonly layout: StoreApi<LayoutState>;
-    /** Whether the bottom region is shown; shown at startup, not persisted. */
+    /**
+     * Whether the bottom region is shown, not persisted: `sources.bottomRegion` when the editor
+     * passes it, else the instance's own, shown at startup.
+     */
     readonly bottomRegion: StoreApi<BottomRegionState>;
     /** The package's commands, then the editor's `*.commands.ts(x)` modules. */
     readonly commands: CommandRegistry<Menu, Context>;
-    /** The state contexts of `config.keyContexts.state`, all off at startup (`setKeyContext`). */
+    /**
+     * The state contexts of `config.keyContexts.state` (`setKeyContext`):
+     * `sources.keyContextState` when the editor passes it, else the instance's own, all off at
+     * startup.
+     */
     readonly keyContextState: StoreApi<KeyContextState<Context>>;
     /** The command palette, the shortcut sheet and the editor's surfaces. */
     readonly surfaces: Surfaces;
@@ -104,6 +112,17 @@ function packageModulesFor(
 ): ModuleMap<CommandModule<PackageMenu, never>> {
     return Object.fromEntries(
         Object.entries(modules).map(([path, module]) => [path, module(scope)]),
+    );
+}
+
+/** Whether two states of a store hold the same value under every key. */
+function shallowEqual(a: object, b: object): boolean {
+    const left = a as Record<string, unknown>;
+    const right = b as Record<string, unknown>;
+    const keys = Object.keys(left);
+    return (
+        keys.length === Object.keys(right).length &&
+        keys.every((key) => Object.hasOwn(right, key) && Object.is(left[key], right[key]))
     );
 }
 
@@ -157,7 +176,13 @@ export function buildEditorUi<
     const storage = browserStorage();
     const names = persistedNames(id);
     const surfaces = createSurfaces([...PACKAGE_SURFACES, ...Object.keys(resolved.surfaces)]);
-    const bottomRegion = createBottomRegionStore();
+    // The editor's own stores when it passes them (SPEC §5 `sources`), else the instance's.
+    const { sources } = resolved;
+    const bottomRegion = sources.bottomRegion ?? createBottomRegionStore();
+    // The configuration check found the editor's store to hold exactly the state contexts.
+    const keyContextState =
+        (sources.keyContextState as StoreApi<KeyContextState<Context>> | undefined) ??
+        createKeyContextStore(resolved.keyContexts.state);
 
     const commands = createCommandRegistry<Menu, Context>({
         menus: resolved.menus,
@@ -179,17 +204,20 @@ export function buildEditorUi<
         }) as unknown as ModuleMap<CommandModule<Menu, Context>>,
     );
     registerCommandModules(commands, modules.commands);
-    // A command's condition may read a state context, as it may read the refreshOn stores.
-    const keyContextState = createKeyContextStore(resolved.keyContexts.state);
-    keyContextState.subscribe(() => commands.refresh());
-    // The bottom region's toggle is titled by what it will do.
-    bottomRegion.subscribe(() => commands.refresh());
+    // A command's condition may read a state context, as it may read the refreshOn stores; the
+    // bottom region's toggle is titled by what it will do. A write that changes nothing (the
+    // editor may write its own stores directly) refreshes nothing.
+    const refreshOnChange = <State extends object>(state: State, previous: State) => {
+        if (!shallowEqual(state, previous)) commands.refresh();
+    };
+    keyContextState.subscribe(refreshOnChange);
+    bottomRegion.subscribe(refreshOnChange);
     for (const source of resolved.refreshOn) source.subscribe(() => commands.refresh());
 
     const tools = createToolRegistry<Tool>();
     registerToolModules(tools, modules.tools);
 
-    return {
+    const editorUi: EditorUi<Menu, Context, Tool, Frame, StatusInput> = {
         config: resolved,
         theme: createThemeStore(storage, names.theme),
         recentCommands: createRecentCommandsStore(storage, names.recentCommands),
@@ -205,6 +233,11 @@ export function buildEditorUi<
         overlayLayers: collectOverlayLayers(modules.overlays),
         statusFields: collectStatusFields(modules.statusFields),
     };
+    // Last, once every registry is built: a configuration that fails leaves the runner free.
+    if (sources.commandRunner) {
+        connectCommandRunner(sources.commandRunner, commands as unknown as CommandRegistry);
+    }
+    return editorUi;
 }
 
 /**
