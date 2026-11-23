@@ -6,6 +6,8 @@ import { build } from "vite";
 import type { Plugin, Rollup } from "vite";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { generateLicences, packageDirsOf } from "../../src/build/licences/index.ts";
+import { buildEntry } from "./support/licences.ts";
+import type { Output } from "./support/licences.ts";
 
 // The licences file of this repository's own build, the gallery site (SPEC §3, §11, §12;
 // licenses.md §5): its licences.txt lists exactly the packages the build bundles, each with
@@ -13,8 +15,6 @@ import { generateLicences, packageDirsOf } from "../../src/build/licences/index.
 
 const ROOT = fileURLToPath(new URL("../../", import.meta.url));
 const GALLERY_CONFIG = join(ROOT, "gallery", "vite.config.ts");
-
-type Output = Rollup.OutputChunk | Rollup.OutputAsset;
 
 /** The outputs of a build of the gallery site, not written to disk. */
 async function buildGallery(): Promise<Output[]> {
@@ -26,22 +26,21 @@ async function buildGallery(): Promise<Output[]> {
     return (Array.isArray(result) ? result : [result]).flatMap(({ output }) => output);
 }
 
-/** A build of `source` as its only module, with the licences plugin of `root`. */
-async function buildSource(root: string, source: string): Promise<Output[]> {
-    const entry: Plugin = {
-        name: "entry",
-        resolveId: (id) => (id === "virtual:entry" ? "\0entry" : null),
-        load: (id) => (id === "\0entry" ? source : null),
-    };
+/** A plugin that serves `virtual:probe` as a virtual module, as a bundler plugin would. */
+const probe: Plugin = {
+    name: "probe",
+    resolveId: (id) => (id === "virtual:probe" ? "\0virtual:probe" : null),
+    load: (id) => (id === "\0virtual:probe" ? "export const probe = 'probe';\n" : null),
+};
+
+/** A build of `source` as its entry module, with the licences plugin of `root`. */
+async function buildSource(
+    root: string,
+    source: string,
+    extra: readonly Plugin[] = [],
+): Promise<Output[]> {
     const { plugin } = generateLicences({ root, title: "Fixture" });
-    const result = (await build({
-        configFile: false,
-        root,
-        logLevel: "silent",
-        plugins: [entry, plugin],
-        build: { write: false, minify: false, rollupOptions: { input: "virtual:entry" } },
-    })) as Rollup.RollupOutput | Rollup.RollupOutput[];
-    return (Array.isArray(result) ? result : [result]).flatMap(({ output }) => output);
+    return buildEntry(root, source, [...extra, plugin]);
 }
 
 /** The `name version (licence)` lines of the file's package list, in order. */
@@ -138,6 +137,14 @@ describe("a build that bundles a package it cannot list", () => {
         );
     }, 60_000);
 
+    it("fails on a virtual module the licences options do not declare, naming it", async () => {
+        await expect(
+            buildSource(ROOT, 'import { probe } from "virtual:probe";\nglobalThis.p = probe;\n', [
+                probe,
+            ]),
+        ).rejects.toThrow(/which no licence covers: "\\u0000virtual:probe"/);
+    }, 60_000);
+
     /** A library project with one peer, installed as a development package. */
     function library(name: string, peerFiles: Record<string, string>): string {
         const root = join(temp, name);
@@ -173,7 +180,11 @@ describe("a build that bundles a package it cannot list", () => {
     const SOURCE = 'import { peer } from "peer";\nglobalThis.peer = peer;\n';
 
     it("lists a peer the build bundles, with its licence text", async () => {
-        const root = library("listed", { LICENSE: "MIT License\n\nCopyright (c) 2026 Peer\n" });
+        const root = library("listed", {
+            LICENSE:
+                "MIT License\n\nCopyright (c) 2026 Peer\n\nPermission is hereby granted, free of " +
+                "charge, to any person obtaining a copy…\n",
+        });
         const outputs = await buildSource(root, SOURCE);
         const file = outputs.find((output) => output.fileName === "licences.txt");
         const text = String((file as Rollup.OutputAsset).source);

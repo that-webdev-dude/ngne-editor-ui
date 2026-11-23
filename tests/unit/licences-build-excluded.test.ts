@@ -1,9 +1,9 @@
 import { fileURLToPath } from "node:url";
-import { build } from "vite";
-import type { Plugin, Rollup } from "vite";
+import type { Rollup } from "vite";
 import { describe, expect, it } from "vitest";
 import { excludedCodeIn, generateLicences } from "../../src/build/licences/index.ts";
 import type { BundleContext, ExcludedCode } from "../../src/build/licences/index.ts";
+import { buildEntry } from "./support/licences.ts";
 
 // Code the build must leave out, passed as an option of the licences helper (SPEC §11): a
 // bundle that holds it fails the build, one that does not passes and gets its licences file.
@@ -19,20 +19,8 @@ const QUANTIZER: ExcludedCode = {
 
 /** The outputs of a minified build of `source` with the licences plugin and `excluded`. */
 async function bundle(source: string, excluded: readonly ExcludedCode[]) {
-    const entry: Plugin = {
-        name: "entry",
-        resolveId: (id) => (id === "virtual:entry" ? "\0entry" : null),
-        load: (id) => (id === "\0entry" ? source : null),
-    };
     const { plugin } = generateLicences({ root: ROOT, title: "Fixture", excludedCode: excluded });
-    const result = (await build({
-        configFile: false,
-        root: ROOT,
-        logLevel: "silent",
-        plugins: [entry, plugin],
-        build: { write: false, minify: true, rollupOptions: { input: "virtual:entry" } },
-    })) as Rollup.RollupOutput | Rollup.RollupOutput[];
-    return (Array.isArray(result) ? result : [result]).flatMap(({ output }) => output);
+    return buildEntry(ROOT, source, [plugin], true);
 }
 
 const WITH_QUANTIZER = 'globalThis.formats = ["rgb565", "rgb444"];\n';

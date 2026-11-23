@@ -372,14 +372,29 @@ closing-popover hook, as the sprite editor at the cut.
   module (`licences`): `createEditorUi` collects it with the editor's `*.dialog.tsx` modules, so
   an editor's dialog of that kind fails at startup, naming the editor's module.
 - **Build helper:** `generateLicences(options)` writes `licences.txt` from the lockfile and
-  the bundle. Options: project licence and notices paths, title, build-only packages listed
-  outside the stray check (rolldown), excluded-code rules (gifenc's quantizer in the sprite
-  editor), licence allowlist, stand-in licence texts. It fails on a bundled package missing
-  from the list, a listed package no longer bundled, a missing licence text, a licence outside
-  the allowlist, or excluded code found in the bundle. A build may bundle the lockfile's
-  runtime dependencies and the project's peer dependencies with every package they require
-  (a library's own site, such as this repository's gallery; an app has no peers); code of any
-  other package fails it.
+  the bundle. Options: project licence and notices paths, title, build-only packages outside
+  the stray check (rolldown), the virtual modules a build may render with their build-only
+  package (default `VIRTUAL_MODULES`: rolldown's runtime and modulepreload polyfill),
+  excluded-code rules (gifenc's quantizer in the sprite editor), licence allowlist, the
+  phrases of each allowed licence's text (default `LICENCE_PHRASES`), stand-in licence texts.
+  The build lists the bundled packages and the build-only packages whose virtual modules it
+  rendered; the development server lists the runtime packages and every build-only package.
+  It fails, naming the package or module, on a bundled package missing from the list, a listed
+  package no longer bundled, a missing licence text, a licence outside the allowlist, a
+  licence file whose text is not the declared licence's, a rendered module it cannot place (a
+  file outside the project, a virtual module not declared, or one declared with a package
+  outside the build-only packages), excluded code found in the bundle, or a written
+  `licences.txt` that lists other packages than the bundle holds. A build may bundle the
+  lockfile's runtime dependencies and the project's peer dependencies with every package they
+  require (a library's own site, such as this repository's gallery; an app has no peers); code
+  of any other package fails it.
+- **Service worker:** `generateLicences` also returns `serviceWorkerPlugin`, for the service
+  worker's own build (`injectManifest.buildPlugins.vite` of `vite-plugin-pwa`), which runs
+  after the app's build has written `licences.txt`: that build fails on code of a package the
+  file does not list, a module it cannot place, or excluded code. Each check is exported from
+  `licences/build` for an app's unit tests (`licenceTextMatches`, `moduleSource`,
+  `unknownModules`, `bundlerPackagesOf`, `listedPackages`, `licencesFileMismatch`,
+  `unlistedPackages`).
 - The approved stand-in text for `react-remove-scroll-bar` 2.3.8 ships with the helper.
 
 ## 12. Gallery
