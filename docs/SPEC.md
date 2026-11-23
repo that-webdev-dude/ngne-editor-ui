@@ -510,7 +510,40 @@ Acceptance in every migration:
 - Persisted names unchanged (§5): an existing user's theme, layout and recent commands load,
   and an installed PWA updates without losing its cache (the app's storage-key and PWA
   update tests).
-- The app's `npm run check` and full E2E suite pass with no assertion changed except imports,
-  the inventory's listed placeholders, and the menu lists of an app that gains the Help menu
-  and About dialog (the tilemap editor), each listed before and after.
+- The app's `npm run check` and full E2E suite pass with no assertion changed except the
+  kinds below, each change listed before and after in the migration's report:
+    - **Imports:** a test's imports and the module paths its pages load move to the
+      package's subpaths or the app's own modules; a renamed export may be imported under
+      its old name as an alias.
+    - **Package hooks:** a locator of an app hook the package replaces (the tab strip, its
+      tabs, leading label and unsaved marker, the bottom region and its content, the
+      notifications region, a status field's action) uses the package's public hook for the
+      same element (§6, §8). A status field's action is located by its field id (§8).
+    - **Canon values:** an assertion of a value the canon fixes differently from the app:
+      region sizes, positions and rail columns of the canon layout (BRIEF D22, DESIGN §2), the
+      order of the package's menu items (DESIGN §7–§8), the shell's element structure, the
+      bottom region's label in title case (§5, §8), a tab close control for the pointer
+      only, with no title (DESIGN §9), and the colour subpath's checked precision
+      (PROVENANCE §4).
+    - **Help menu and About dialog**, for an app that gains them: its menu lists and order,
+      the items that move to Help, the shortcut sheet's groups, and the package's About
+      command among the commands its gate leaves enabled.
+    - **Placeholders:** the inventory's listed placeholders.
+    - **Command sources:** a command's `source` is its glob key relative to the module that
+      holds the glob (§1.3); with the globs in `src/app/editorUi.ts`, a path such as
+      `../file/file.commands.ts` becomes `./file/file.commands.ts`.
+    - **Scans and fixtures:** a scan of the app's imports that matches every `@ngne/` package
+      names the one it means; a fixture whose tool key clashes inside one tool set, which the
+      package refuses (§8), takes another key.
+    - **Tests of replaced modules:** rewritten against the public API, or retired on the
+      owner's approved list (MIGRATION §2 step 9). A test of a file the package now provides,
+      such as the app's token stylesheet, is retired the same way.
+- No test is deleted, except the app's own gallery tests, which the package's gallery replaces
+  (§12), and the tests retired on the owner's approved list, each naming the package test that
+  covers it.
+- The app's dependency and provenance tests change no assertion: they pass once the pin is
+  exact and the app's own stack list names the package (step 1), and once the copy rows of
+  the deleted files retire (step 4). Inlining the package in the app's Vitest configuration
+  for unit tests that need fresh package state (MIGRATION §2 step 9) changes no assertion
+  either.
 - BRIEF §8 budgets met.
