@@ -352,6 +352,7 @@ Rules for the rows:
 | 2026-11-13 | Stand-in licence text approved for `react-remove-scroll-bar` 2.3.8, whose npm package ships no licence file: the `LICENSE` of its repository at commit `7301c160`, compared byte for byte (decided for the sprite editor; it moves here with the licences build helper) |
 | 2026-11-15 | `src/colour/oklab.ts` is rewritten clean-room in EU-004 from the published matrices and formulas, not moved from the sprite editor, because whether the post's code was read is not known (BRIEF D21) |
 | 2026-11-15 | The OKLab reference values of the sRGB primaries are checked to 3 decimals in `tests/unit/colour-oklab.test.ts`: from the published M1 and the sRGB primaries they differ by up to 1.2e-4, and 5 decimals would need the post's linear-sRGB matrix, which is in its code only. White, black, greys, round trips and clipping stay exact |
+| 2026-11-22 | The OKLab check reads only the sources of BRIEF D21: the published matrices and formulas and the sRGB standard. The sprite editor's `tests/unit/se-043-oklab.test.ts`, in its check of the reference values of the primaries, takes the package's precision at its migration: the primaries to 3 decimals instead of 5, as in `tests/unit/colour-oklab.test.ts`, a test change listed before and after (BRIEF D31). `src/colour/oklab.ts` stays as written |
 
 ## 5. Open items
 
