@@ -15,7 +15,8 @@ import {
 // configuration reserves; one column, or two when one does not fit, never clipped; the editor's
 // filter (the demo's tool set) choosing the slots shown; a key or a click selecting a tool, the
 // focus going to the target the editor passes; the variants of a slot; the tooltip with name
-// and key after 400 ms; both themes with no WCAG 2.1 AA violation.
+// and key after 400 ms; a tool registered at run time (the demo's probe tool) joining and
+// leaving the rail; both themes with no WCAG 2.1 AA violation.
 
 const FOOTER_HEIGHT = 58;
 const PAINT = ["pencil", "airbrush", "eraser", "fill", "eyedropper", "smudge"];
@@ -325,6 +326,53 @@ test("a tool button's tooltip shows its name and key after 400 ms", async ({ pag
     // Away from the button and its tooltip, onto the canvas: the tooltip closes.
     await page.mouse.move(box.x + 600, box.y + 300, { steps: 4 });
     await expect(tooltip).toHaveCount(0);
+});
+
+test("a tool registered at run time shows in the rail with its key and tooltip, and the columns recompute", async ({
+    page,
+}) => {
+    const errors = uncaughtErrors(page);
+    // A rail 15 px taller than the 718 px the "All" set takes in one column: one more slot,
+    // 30 px, does not fit. The rail is 60 px shorter than the window.
+    await page.setViewportSize({ width: 1280, height: 718 + 15 + 60 });
+    await chooseToolSet(page, "All");
+    expect((await boxOf(rail(page))).height).toBe(733);
+    await expect(rail(page)).toHaveAttribute("data-columns", "1");
+    await expect(slot(page, "probe")).toHaveCount(0);
+
+    const toggle = page.getByRole("button", { name: "Probe tool" });
+    await toggle.click();
+    await expect(toggle).toHaveAttribute("aria-pressed", "true");
+    expect(await railGroups(page)).toEqual([SELECT, PAINT, SHAPES, [...TEXT, "probe"], NAVIGATE]);
+    await expect(slot(page, "probe")).toBeEnabled();
+    await expect(slot(page, "probe")).toHaveAccessibleName("Probe");
+    await expect(rail(page)).toHaveAttribute("data-columns", "2");
+    expect((await boxOf(rail(page))).width).toBe(72);
+    expect(await clippedInRail(page)).toEqual([]);
+
+    // Its tooltip has its name and key, and the key selects it.
+    const box = await boxOf(slot(page, "probe"));
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await expect(page.locator(".ui-tooltip")).toHaveText(/^Probe\s*K$/);
+    await page.mouse.move(box.x + 600, box.y, { steps: 4 });
+    await expect(page.locator(".ui-tooltip")).toHaveCount(0);
+    await focus(viewport(page));
+    await page.keyboard.press("KeyK");
+    await expect(slot(page, "probe")).toHaveAttribute("aria-pressed", "true");
+    await expect(contextTool(page)).toHaveText("Probe");
+
+    // Removed: the slot goes, the rail takes one column again, and the pencil is selected.
+    await toggle.click();
+    await expect(toggle).toHaveAttribute("aria-pressed", "false");
+    await expect(slot(page, "probe")).toHaveCount(0);
+    expect(await railGroups(page)).toEqual([SELECT, PAINT, SHAPES, TEXT, NAVIGATE]);
+    await expect(rail(page)).toHaveAttribute("data-columns", "1");
+    await expect(slot(page, "pencil")).toHaveAttribute("aria-pressed", "true");
+    // Its key is gone with it.
+    await focus(viewport(page));
+    await page.keyboard.press("KeyK");
+    await expect(slot(page, "pencil")).toHaveAttribute("aria-pressed", "true");
+    expect(errors).toEqual([]);
 });
 
 for (const theme of THEMES) {

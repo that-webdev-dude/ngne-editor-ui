@@ -7,7 +7,8 @@ import { chooseDemoTheme, focus, openDemo, settle, viewport } from "./surfaces-s
 // its options in the tool's order, each in its control, changing the editor's store; the
 // options that do not fit, from the last one back, in a trailing overflow menu; the readouts
 // slot after them, never in that menu; a `*.contextbar.tsx` module's content in the options'
-// place; both themes with no WCAG 2.1 AA violation.
+// place; the options of a tool registered at run time (the demo's probe tool); both themes
+// with no WCAG 2.1 AA violation.
 
 const AIRBRUSH = [
     "size",
@@ -222,6 +223,33 @@ test("a context-bar module's content replaces the options while it is shown", as
     await expect(bar(page).locator("[data-context-content]")).toHaveCount(0);
     await expect(inBar(page).first()).toHaveAttribute("data-tool-option", "size");
     await expect(readouts(page)).toBeVisible();
+    expect(errors).toEqual([]);
+});
+
+test("a tool registered at run time shows its options while it is active", async ({ page }) => {
+    const errors = uncaughtErrors(page);
+    const toggle = page.getByRole("button", { name: "Probe tool" });
+    await toggle.click();
+    await expect(toggle).toHaveAttribute("aria-pressed", "true");
+    await railButton(page, "probe").click();
+    await expect(toolName(page)).toHaveText("Probe");
+    expect(await optionKeys(inBar(page))).toEqual(["radius", "snap"]);
+
+    const radius = bar(page).getByRole("spinbutton", { name: "Radius" });
+    const snap = bar(page).getByRole("button", { name: "Snap to pixel" });
+    await expect(radius).toHaveValue("4");
+    await expect(snap).toHaveAttribute("aria-pressed", "true");
+    await radius.fill("10");
+    await page.keyboard.press("Enter");
+    await expect(radius).toHaveValue("10");
+    await snap.click();
+    await expect(snap).toHaveAttribute("aria-pressed", "false");
+
+    // Removed while active: the bar shows the pencil the demo selects again.
+    await toggle.click();
+    await expect(toggle).toHaveAttribute("aria-pressed", "false");
+    await expect(toolName(page)).toHaveText("Pencil");
+    expect(await optionKeys(inBar(page))).toEqual(["size", "pixelPerfect"]);
     expect(errors).toEqual([]);
 });
 

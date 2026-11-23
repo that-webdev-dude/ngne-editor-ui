@@ -1,14 +1,15 @@
 import { optionValues, slotOf } from "@ngne/editor-ui/shell";
 import type { RegisteredTool, ToolOptionValue, ToolStateSource } from "@ngne/editor-ui/shell";
-import { editorUi } from "./editorUi.ts";
+import { toolRegistry } from "./sources.ts";
 import { selectTool, setToolOption, toolStore } from "./tools.ts";
 import type { DemoTool } from "./tools.ts";
 
 // What the demo editor's tool rail and context bar read (SPEC §8 `tools`): its tool store over
-// the instance's tool registry, as an editor's active-tool store is. A rail slot with variants
+// its tool registry, the instance's (SPEC §5 `sources.tools`), as an editor's active-tool store
+// is. A rail slot with variants
 // shows the active tool when it is one of the slot's, else the slot's tool selected last.
 
-const registry = editorUi.tools;
+const registry = toolRegistry;
 const listeners = new Set<() => void>();
 let version = 0;
 

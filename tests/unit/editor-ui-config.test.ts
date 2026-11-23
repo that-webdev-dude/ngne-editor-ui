@@ -5,7 +5,11 @@ import { createCommandRunner, createKeyContextStore } from "../../src/ui/command
 import { PACKAGE_COMMAND_SOURCE } from "../../src/ui/editorUi/packageCommands.ts";
 import { createEditorUi } from "../../src/ui/index.ts";
 import type { AppInfo, EditorUiConfig } from "../../src/ui/index.ts";
-import { createBottomRegionStore } from "../../src/ui/shell/index.ts";
+import {
+    createBottomRegionStore,
+    createToolRegistry,
+    registerToolModules,
+} from "../../src/ui/shell/index.ts";
 
 // The configuration of `createEditorUi` (SPEC §5): the default of every optional field, the
 // module maps handed to their registries (SPEC §1.3), the sources of state an editor passes,
@@ -138,6 +142,47 @@ describe("createEditorUi with the editor's own sources (SPEC §5 sources)", () =
         const partial = createEditorUi({ ...BASE, sources: { bottomRegion: store } });
         expect(partial.bottomRegion).toBe(store);
         expect(partial.keyContextState.getState()).toEqual({});
+    });
+});
+
+describe("createEditorUi with the editor's tool registry (SPEC §5 sources.tools)", () => {
+    const tools = createToolRegistry();
+    registerToolModules(tools, {
+        "/src/pencil.tools.ts": { tools: [{ id: "pencil", label: "Pencil", shortcut: "B" }] },
+    });
+    // A tool-derived command reads the registry before the instance exists.
+    const keys = {
+        "/src/tools.commands.ts": {
+            commands: tools.list().map((entry) => ({
+                id: `tool.${entry.id}`,
+                title: `${entry.label} Tool`,
+                shortcut: entry.shortcut,
+                context: "canvas" as const,
+                run: () => {},
+            })),
+        },
+    };
+    const editorUi = createEditorUi({ ...BASE, modules: { commands: keys }, sources: { tools } });
+
+    it("is used as is: the instance's tools are the registry the editor passed", () => {
+        expect(editorUi.tools).toBe(tools);
+        expect(editorUi.config.sources.tools).toBe(tools);
+        expect(editorUi.config.modules.tools).toEqual({});
+        expect(editorUi.commands.get("tool.pencil")?.shortcuts).toEqual(["B"]);
+    });
+
+    it("shows a tool registered after start, and drops it when it is removed", () => {
+        const remove = tools.register({ id: "probe", label: "Probe" }, "test fixture");
+        expect(editorUi.tools.get("probe")).toBe(tools.get("probe"));
+        remove();
+        expect(editorUi.tools.get("probe")).toBeUndefined();
+    });
+
+    it("without it, the instance builds its registry from modules.tools", () => {
+        const map = { "/src/eraser.tools.ts": { tools: [{ id: "eraser", label: "Eraser" }] } };
+        const built = createEditorUi({ ...BASE, modules: { tools: map } });
+        expect(built.tools).not.toBe(tools);
+        expect(built.tools.list().map((entry) => entry.id)).toEqual(["eraser"]);
     });
 });
 
@@ -378,6 +423,16 @@ describe("createEditorUi refuses an invalid configuration at startup, naming the
             "a command runner that createCommandRunner did not make",
             { sources: { commandRunner: { run: () => true } } },
             /config\.sources\.commandRunner is not a runner/,
+        ],
+        [
+            "a tool registry that createToolRegistry did not make",
+            { sources: { tools: { list: () => [] } } },
+            /config\.sources\.tools is not a tool registry/,
+        ],
+        [
+            "a tool registry and a tools map",
+            { modules: { tools: {} }, sources: { tools: createToolRegistry() } },
+            /config\.sources\.tools is given with modules\.tools/,
         ],
     ];
 

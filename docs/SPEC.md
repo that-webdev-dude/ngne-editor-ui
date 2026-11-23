@@ -42,6 +42,14 @@ one `import.meta.glob` line and passes the map; the package validates, orders an
 Module order is by path, compared by UTF-16 code unit (locale-independent). Registration
 errors (duplicate ids, chord conflicts, unknown menus) throw at startup, as today.
 
+The tool registry has one owner. An app whose own code needs the tools before the instance
+exists (its tool-key commands, its active-tool store) creates it with
+`createToolRegistry<Tool>()` and `registerToolModules(map)` in a module that imports no
+instance and passes it as `sources.tools` (§5); otherwise `createEditorUi` builds it from
+`modules.tools`. Either way the instance's `tools` is the one registry the rail, the context
+bar and the app read. It changes after start: a tool registered or removed later notifies its
+subscribers, and the rail and the context bar follow (§8).
+
 | Registry | Module suffix | Factory |
 | --- | --- | --- |
 | Commands, keymap and menus | `*.commands.ts(x)` | `createCommandRegistry` + `registerCommandModules(map)` |
@@ -146,12 +154,12 @@ const editorUi = createEditorUi({
     keyContexts: { order: [...], state: [...], focus: { panel: '[data-region="timeline"]' } },
     bottomRegion: { id: "timeline", label: "Timeline" },   // or null
     railFooterHeight: 54,
-    modules: { commands, dialogs, dock, contextBars, tools, overlays, statusFields },
+    modules: { commands, dialogs, dock, contextBars, overlays, statusFields },  // tools: sources
     refreshOn: [editorStore, sessionStore],   // stores whose changes refresh commands
     commandGate: (command) => boolean,        // e.g. "no project open" allow-list
     beforeRun: (command) => void,             // e.g. stop playback
     surfaces: { preferences: PreferencesDialog },
-    sources: { keyContextState, bottomRegion, commandRunner },   // from src/app/uiState.ts
+    sources: { keyContextState, bottomRegion, commandRunner, tools },   // from src/app/uiState.ts
 });
 ```
 
@@ -160,6 +168,8 @@ const editorUi = createEditorUi({
 export const keyContextState = createKeyContextStore(["gesture", "floating"]);  // keyContexts.state
 export const bottomRegion = createBottomRegionStore();
 export const commandRunner = createCommandRunner();
+export const tools = createToolRegistry<SpriteTool>();
+registerToolModules(tools, import.meta.glob("./**/*.tools.{ts,tsx}", { eager: true }));
 ```
 
 | Field | Meaning | Default |
@@ -171,12 +181,12 @@ export const commandRunner = createCommandRunner();
 | `keyContexts` | App contexts and their order around the package's `text`, `canvas`, `global` (§7.2); state contexts; focus selectors | `text`, `canvas`, `global` only |
 | `bottomRegion` | Id and label of the bottom region, or `null` for none. The id is lowercase words joined by hyphens and not another region's (§8); the label is in title case | `null` |
 | `railFooterHeight` | Height reserved under the tool rail's groups | `0` |
-| `modules` | The module maps of §1.3 | Empty maps |
+| `modules` | The module maps of §1.3; `tools` left out when `sources.tools` is given | Empty maps |
 | `refreshOn` | Stores whose change triggers a command refresh | None |
 | `commandGate` | Disables the app's commands the gate rejects; the package's commands are outside it, as they act without a document | All enabled |
 | `beforeRun` | Runs before every command | None |
 | `surfaces` | App surfaces beside the command palette and shortcut sheet | None |
-| `sources` | State the app creates in a module that imports no instance (`EditorUiSources`), used instead of the instance's own: `keyContextState` (`createKeyContextStore(keyContexts.state)`, `@ngne/editor-ui/commands`), `bottomRegion` (`createBottomRegionStore()`, `@ngne/editor-ui/shell`) and `commandRunner` (`createCommandRunner()`, `@ngne/editor-ui/commands`). Each is optional. `createEditorUi` throws naming the source for one its factory did not create, a state-context store that does not hold exactly the state contexts, each `true` or `false`, and a runner another instance holds | None: the instance creates its own stores |
+| `sources` | State the app creates in a module that imports no instance (`EditorUiSources`), used instead of the instance's own: `keyContextState` (`createKeyContextStore(keyContexts.state)`, `@ngne/editor-ui/commands`), `bottomRegion` (`createBottomRegionStore()`, `@ngne/editor-ui/shell`), `commandRunner` (`createCommandRunner()`, `@ngne/editor-ui/commands`) and `tools` (`createToolRegistry<Tool>()` with the app's `*.tools.ts(x)` map registered by `registerToolModules`, `@ngne/editor-ui/shell`). Each is optional. `createEditorUi` throws naming the source for one its factory did not create, a state-context store that does not hold exactly the state contexts, each `true` or `false`, a runner another instance holds, and a tool registry given with `modules.tools` | None: the instance creates its own stores |
 
 Persisted names keep their current values, so a migrating app keeps its users' data:
 
@@ -201,15 +211,19 @@ The public API calls the bottom region "bottom" (`BOTTOM_HEIGHT`, `resolveBottom
 only the stored field keeps its old name.
 
 `sources` lets the modules the instance's maps load (command, dialog, dock, tool, overlay
-modules and what they import) switch a state context, show or hide the bottom region and run
-a command without importing the app's instance module, which imports them first. The app
+modules and what they import) switch a state context, show or hide the bottom region, run
+a command and read the tools without importing the app's instance module, which imports them
+first. The app
 creates the sources in a module of its own and passes them; the instance reads and writes
 them, refreshes its commands when one changes, and its keymap resolves with them (§7.2, §8). A
 write that changes nothing refreshes nothing. `commandRunner.run(id)` runs the command `id` of
 the instance that holds the runner, as `runCommand` does (§7.1): false when the command does
 not exist or is disabled, a failure reported by an error toast. It throws while no instance
 holds it; one instance holds it, connected once every registry is built, so a configuration
-that fails leaves it free. An app that passes no sources behaves as one before them.
+that fails leaves it free. `sources.tools` is used as is: the instance's `tools` is that
+object, so the app's tool-key commands and active-tool store read the tools the rail shows,
+and a tool the app registers on it later (a test fixture) reaches the rail and the context
+bar. An app that passes no sources behaves as one before them.
 
 ## 6. Messages, focus and platform
 
@@ -310,7 +324,10 @@ that fails leaves it free. An app that passes no sources behaves as one before t
   "Hide <label>" or "Show <label>" by what it will do. It names no menu; an editor places it in
   View with a planned command of that id. An editor without a bottom region has no such
   command.
-- **Tool rail:** columns from the tool registry's groups; one or two columns by height. An
+- **Tool rail:** columns from the tool registry's groups; one or two columns by height. It
+  follows the registry: a tool registered after start shows with its key and tooltip and one
+  removed disappears, the columns recomputed; while such a tool is active the context bar shows
+  its options. An
   optional filter chooses the tools shown (the tilemap shows the tools of the active layer's
   kind): `AppShell`'s `railFilter`, over the rail's slots; a new function updates the rail and
   its columns. The rail and the context bar read the editor's active-tool store, `AppShell`'s
@@ -346,8 +363,10 @@ that fails leaves it free. An app that passes no sources behaves as one before t
 - **Tools (BRIEF D18):** `ToolBase` holds what the rail and context bar need: id, title
   (`label`), icon, key (`shortcut`, and a `hold` key), group (`railOrder`, whose hundreds are
   the rail's groups), variant-of (`variantOf`), option specs (`options`). Apps extend it with
-  pointer and stroke behaviour; the registry is generic over `Tool extends ToolBase`. A key that
-  two tools or planned slots use is refused at registration.
+  pointer and stroke behaviour; the registry is generic over `Tool extends ToolBase`. The app
+  may create the registry itself and pass it (`sources.tools`, §5), so its own code reads the
+  tools the shell shows, with no second catalogue. A key that two tools or planned slots use
+  is refused at registration.
 - **F6 regions:** found by `data-region`; F6 / Shift+F6 cycle them (`focus.nextRegion`,
   `focus.previousRegion`, in `global` and `text`, the editors' ids).
 

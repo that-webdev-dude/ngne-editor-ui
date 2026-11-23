@@ -6,7 +6,7 @@ import { DEMO_CONTEXTS, PANEL_SELECTOR } from "./keys.ts";
 import type { DemoContext } from "./keys.ts";
 import { PreferencesDialog } from "./PreferencesDialog.tsx";
 import { rowsStore } from "./rows.ts";
-import { bottomRegionState, keyContextState, STATE_CONTEXTS } from "./sources.ts";
+import { bottomRegionState, keyContextState, STATE_CONTEXTS, toolRegistry } from "./sources.ts";
 import { RAIL_FOOTER_HEIGHT } from "./tools.ts";
 import type { DemoTool } from "./tools.ts";
 
@@ -18,9 +18,10 @@ import type { DemoTool } from "./tools.ts";
 // Its own surface: a fixture Preferences dialog, beside the package's (SPEC §5 `surfaces`).
 // Its bottom region (SPEC §5 `bottomRegion`): the Timeline, toggled by Tab as `view.timeline`.
 // The page opened with `?bottom=none` builds the instance without one, the configuration of an
-// editor that has no bottom region. The state contexts and the Timeline's visibility are the
-// demo's own stores (`sources.ts`, SPEC §5 `sources`). Its tools (`*.tools.ts`) with the height their rail footer
-// takes (SPEC §5 `railFooterHeight`), and its context-bar content (`*.contextbar.tsx`). Its
+// editor that has no bottom region. The state contexts, the Timeline's visibility and the tool
+// registry over its `*.tools.ts` modules are the demo's own (`sources.ts`, SPEC §5 `sources`).
+// Its rail footer's height (SPEC §5 `railFooterHeight`), and its context-bar content
+// (`*.contextbar.tsx`). Its
 // build facts are a fixture (`appInfo.ts`), which Help → About NGNE Demo Editor… shows. The
 // page opened with `?theme=dark` or `?theme=light` shows that theme without storing it, as the
 // gallery's Demo editor entry opens it to follow the gallery's switch; a choice in Preferences
@@ -63,7 +64,6 @@ export const editorUi = createEditorUi({
         contextBars: import.meta.glob<ModuleOf<"contextBars">>("./**/*.contextbar.tsx", {
             eager: true,
         }),
-        tools: import.meta.glob<ModuleOf<"tools">>("./**/*.tools.{ts,tsx}", { eager: true }),
         overlays: import.meta.glob<ModuleOf<"overlays">>("./**/*.overlay.{ts,tsx}", {
             eager: true,
         }),
@@ -73,7 +73,7 @@ export const editorUi = createEditorUi({
     },
     refreshOn: [rowsStore],
     surfaces: { preferences: PreferencesDialog },
-    sources: { keyContextState, bottomRegion: bottomRegionState },
+    sources: { keyContextState, bottomRegion: bottomRegionState, tools: toolRegistry },
 });
 
 // The address's theme, set in the store without the write `setTheme` makes.

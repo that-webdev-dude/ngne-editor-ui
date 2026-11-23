@@ -9,6 +9,7 @@ import type { ContextBarContentModule } from "../../model/registries/contextBar.
 import type { DockPanelModule } from "../../model/registries/dock.js";
 import type { StatusFieldModule } from "../../model/registries/statusFields.js";
 import type { OverlayLayerModule } from "../../model/overlay/layers.js";
+import type { ToolRegistry } from "../../model/tools/registry.js";
 import type { ToolBase, ToolModule } from "../../model/tools/types.js";
 import { commandRunnerState } from "../commands/commandRunner.js";
 import type { CommandRunner } from "../commands/commandRunner.js";
@@ -94,7 +95,7 @@ export interface CommandRefreshSource {
  * modules the instance's maps load reach it without importing the instance (SPEC §5). The
  * instance uses each source given instead of creating its own.
  */
-export interface EditorUiSources {
+export interface EditorUiSources<Tool extends ToolBase = ToolBase> {
     /**
      * The state contexts, from `createKeyContextStore` over `keyContexts.state`; `createEditorUi`
      * checks that it holds those contexts and no other.
@@ -104,6 +105,12 @@ export interface EditorUiSources {
     readonly bottomRegion?: StoreApi<BottomRegionState>;
     /** Runs the instance's commands, from `createCommandRunner`; one instance holds it. */
     readonly commandRunner?: CommandRunner;
+    /**
+     * The tool registry, from `createToolRegistry` with the editor's `*.tools.ts(x)` map
+     * registered on it (`registerToolModules`): the instance's `tools`, the objects the rail and
+     * the context bar show. Given, `modules.tools` is left out.
+     */
+    readonly tools?: ToolRegistry<Tool>;
 }
 
 /** The configuration of an editor's interface (SPEC §5). */
@@ -139,7 +146,7 @@ export interface EditorUiConfig<
     /** Surfaces of the editor beside the command palette and shortcut sheet, by id. */
     readonly surfaces?: Readonly<Record<string, ComponentType>>;
     /** State the editor creates itself; the default is none: the instance creates its own. */
-    readonly sources?: EditorUiSources;
+    readonly sources?: EditorUiSources<Tool>;
 }
 
 /** The configuration with every optional field resolved to its value or its default. */
@@ -162,7 +169,7 @@ export interface ResolvedEditorUiConfig<
     commandGate(command: Command<Menu, Context>): boolean;
     beforeRun(command: Command<Menu, Context>): void;
     readonly surfaces: Readonly<Record<string, ComponentType>>;
-    readonly sources: EditorUiSources;
+    readonly sources: EditorUiSources<Tool>;
 }
 
 /**
@@ -315,20 +322,55 @@ function checkCommandRunner(source: unknown): void {
     }
 }
 
+/** What the instance calls on a tool registry. */
+const TOOL_REGISTRY_METHODS = [
+    "register",
+    "plan",
+    "get",
+    "list",
+    "railSlots",
+    "subscribe",
+    "version",
+];
+
+/**
+ * The registry the editor passes is the instance's `tools`: one owner of the tools, so the
+ * editor registers its `*.tools.ts(x)` map on it and passes no second map.
+ */
+function checkToolRegistry(source: unknown, toolsMap: unknown): void {
+    const registry = source as Record<string, unknown> | null;
+    const complete =
+        typeof registry === "object" &&
+        registry !== null &&
+        TOOL_REGISTRY_METHODS.every((name) => typeof registry[name] === "function");
+    if (!complete) {
+        fail("sources.tools", "is not a tool registry; create it with createToolRegistry().");
+    }
+    if (toolsMap !== undefined) {
+        fail(
+            "sources.tools",
+            "is given with modules.tools; register the map on the registry " +
+                "(registerToolModules) and leave modules.tools out.",
+        );
+    }
+}
+
 /** The state the editor passes (SPEC §5 `sources`); throws naming a source that is malformed. */
-function resolveSources(
-    sources: EditorUiSources | undefined,
+function resolveSources<Tool extends ToolBase>(
+    sources: EditorUiSources<Tool> | undefined,
     stateContexts: readonly string[],
-): EditorUiSources {
+    toolsMap: unknown,
+): EditorUiSources<Tool> {
     if (sources === undefined) return {};
     if (typeof sources !== "object" || sources === null) {
         fail("sources", "is an object of the editor's own stores, or left out.");
     }
-    const { keyContextState, bottomRegion, commandRunner } = sources;
+    const { keyContextState, bottomRegion, commandRunner, tools } = sources;
     if (keyContextState !== undefined) checkKeyContextSource(keyContextState, stateContexts);
     if (bottomRegion !== undefined) checkBottomRegionSource(bottomRegion);
     if (commandRunner !== undefined) checkCommandRunner(commandRunner);
-    return { keyContextState, bottomRegion, commandRunner };
+    if (tools !== undefined) checkToolRegistry(tools, toolsMap);
+    return { keyContextState, bottomRegion, commandRunner, tools };
 }
 
 const allEnabled = (): boolean => true;
@@ -337,7 +379,8 @@ const nothing = (): void => undefined;
 /**
  * The configuration with its defaults (SPEC §5). Throws an error naming the field when a
  * required field is missing, the menu bar has no `View` or does not end with `Help`, a key
- * context is unknown, or a source the editor passes is not what its factory creates.
+ * context is unknown, a source the editor passes is not what its factory creates, or the editor
+ * passes both a tool registry and a `tools` map.
  */
 export function resolveEditorUiConfig<
     Menu extends string,
@@ -373,6 +416,6 @@ export function resolveEditorUiConfig<
         commandGate: config.commandGate?.bind(config) ?? allEnabled,
         beforeRun: config.beforeRun?.bind(config) ?? nothing,
         surfaces: resolveSurfaces(config.surfaces),
-        sources: resolveSources(config.sources, keyContexts.state),
+        sources: resolveSources(config.sources, keyContexts.state, modules.tools),
     };
 }

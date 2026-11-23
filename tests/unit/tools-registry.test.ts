@@ -215,6 +215,67 @@ describe("registry", () => {
     });
 });
 
+describe("tools registered after creation", () => {
+    /** The ids added at each notification, in order. */
+    function additions(registry: ToolRegistry<FixtureTool>): string[][] {
+        const added: string[][] = [];
+        let known = new Set(registry.list().map((entry) => entry.id));
+        registry.subscribe(() => {
+            const ids = registry.list().map((entry) => entry.id);
+            added.push(ids.filter((id) => !known.has(id)));
+            known = new Set(ids);
+        });
+        return added;
+    }
+
+    it("notifies subscribers of a tool registered and removed after the modules", () => {
+        const registry = createToolRegistry<FixtureTool>();
+        const added = additions(registry);
+        // Inserted out of path order: the modules still register by path.
+        registerToolModules(registry, {
+            "./b.tools.ts": { tools: [tool("brush", { icon: "brush", railOrder: 110 })] },
+            "./a.tools.ts": { tools: [tool("airbrush", { icon: "spray", railOrder: 100 })] },
+        });
+        expect(added).toEqual([["airbrush"], ["brush"]]);
+        expect(registry.get("brush")?.source).toBe("./b.tools.ts");
+
+        let notified = 0;
+        registry.subscribe(() => notified++);
+        const version = registry.version();
+        const remove = registry.register(
+            tool("probe", { icon: "probe", shortcut: "K", railOrder: 105 }),
+            "test fixture",
+        );
+        expect(notified).toBe(1);
+        expect(registry.version()).not.toBe(version);
+        expect(added.at(-1)).toEqual(["probe"]);
+        expect(registry.get("probe")?.source).toBe("test fixture");
+        expect(registry.railSlots().map((slot) => slot.id)).toEqual(["airbrush", "probe", "brush"]);
+
+        remove();
+        expect(notified).toBe(2);
+        expect(registry.get("probe")).toBeUndefined();
+        expect(registry.railSlots().map((slot) => slot.id)).toEqual(["airbrush", "brush"]);
+        // The modules' tools keep their sources: the first user of an id is still named by path.
+        expect(() => registry.register(tool("airbrush"), "test fixture")).toThrow(
+            /"airbrush" is used by \.\/a\.tools\.ts and test fixture/,
+        );
+        expect(notified).toBe(2);
+    });
+
+    it("lets a tool registered after creation take a planned slot, and frees it when removed", () => {
+        const registry = rail();
+        let notified = 0;
+        registry.subscribe(() => notified++);
+        const remove = registry.register(tool("wand", { label: "Magic wand" }), "test fixture");
+        expect(slotIn(registry, "wand").tool?.id).toBe("wand");
+        expect(slotIn(registry, "wand").tool?.shortcut).toBe("W");
+        remove();
+        expect(slotIn(registry, "wand").tool).toBeNull();
+        expect(notified).toBe(2);
+    });
+});
+
 describe("keys", () => {
     it("refuses a key two tools use, naming both modules", () => {
         const registry = createToolRegistry<FixtureTool>();

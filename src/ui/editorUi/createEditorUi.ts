@@ -17,7 +17,7 @@ import { collectStatusFields } from "../../model/registries/statusFields.js";
 import type { StatusField } from "../../model/registries/statusFields.js";
 import { createToolRegistry, registerToolModules } from "../../model/tools/registry.js";
 import type { ToolRegistry } from "../../model/tools/registry.js";
-import type { ToolBase } from "../../model/tools/types.js";
+import type { ToolBase, ToolModule } from "../../model/tools/types.js";
 import { connectCommandRunner } from "../commands/commandRunner.js";
 import { createKeyContextStore } from "../commands/keyContextState.js";
 import type { KeyContextState } from "../commands/keyContextState.js";
@@ -86,7 +86,10 @@ export interface EditorUi<
     readonly dockPanels: readonly DockPanel<ComponentType>[];
     /** The `*.contextbar.tsx` content by precedence. */
     readonly contextBarContent: readonly ContextBarContent<ComponentType>[];
-    /** The `*.tools.ts(x)` tools. */
+    /**
+     * The `*.tools.ts(x)` tools: `sources.tools` when the editor passes it, the same object,
+     * else a registry built from `modules.tools`.
+     */
     readonly tools: ToolRegistry<Tool>;
     /** The `*.overlay.ts(x)` layers in draw order. */
     readonly overlayLayers: readonly OverlayLayer<Frame>[];
@@ -113,6 +116,15 @@ function packageModulesFor(
     return Object.fromEntries(
         Object.entries(modules).map(([path, module]) => [path, module(scope)]),
     );
+}
+
+/** The registry of an editor that passes no tool registry: its `tools` map registered. */
+function toolRegistryOf<Tool extends ToolBase>(
+    modules: ModuleMap<ToolModule<Tool>>,
+): ToolRegistry<Tool> {
+    const tools = createToolRegistry<Tool>();
+    registerToolModules(tools, modules);
+    return tools;
 }
 
 /** Whether two states of a store hold the same value under every key. */
@@ -214,8 +226,7 @@ export function buildEditorUi<
     bottomRegion.subscribe(refreshOnChange);
     for (const source of resolved.refreshOn) source.subscribe(() => commands.refresh());
 
-    const tools = createToolRegistry<Tool>();
-    registerToolModules(tools, modules.tools);
+    const tools = sources.tools ?? toolRegistryOf(modules.tools);
 
     const editorUi: EditorUi<Menu, Context, Tool, Frame, StatusInput> = {
         config: resolved,
