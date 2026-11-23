@@ -25,7 +25,8 @@ import {
 
 // The About dialog (SPEC §11, DESIGN §7, §8) on the demo editor: Help → About NGNE Demo
 // Editor…, the last item of the Help menu in a group of its own, shows the demo's fixture build
-// facts (gallery/demo/appInfo.ts); its links open in new tabs; Copy version info copies the one
+// facts (gallery/demo/appInfo.ts); its links open in new tabs, each a pointer target of at least
+// 24 × 24 px (DESIGN §9); Copy version info copies the one
 // line a bug report needs and says so, or says in --danger that the clipboard is not
 // available; Escape and Close return the focus. Both themes, at 1280×720 and 125% zoom, pass
 // axe with the dialog open, on the demo and in the gallery's About entry.
@@ -95,6 +96,38 @@ function tokenColour(dialog: Locator, token: string): Promise<string> {
         probe.remove();
         return colour;
     }, token);
+}
+
+/**
+ * Each link's pointer target is at least 24 × 24 px (DESIGN §9) while its text keeps one
+ * 16 px line, centred in the target, with the text's look: the target is padding only.
+ */
+async function expectLinkTargets(dialog: Locator): Promise<void> {
+    const links = dialog.getByRole("link");
+    await expect(links).toHaveCount(2);
+    for (const link of await links.all()) {
+        const box = await boxOf(link);
+        expect(box.width).toBeGreaterThanOrEqual(24);
+        expect(box.height).toBeGreaterThanOrEqual(24);
+        const text = await link.evaluate((a) => {
+            const range = document.createRange();
+            range.selectNodeContents(a);
+            const { top, bottom } = range.getBoundingClientRect();
+            const style = getComputedStyle(a);
+            const padding = parseFloat(style.paddingTop) + parseFloat(style.paddingBottom);
+            return {
+                lines: range.getClientRects().length,
+                top,
+                bottom,
+                content: a.getBoundingClientRect().height - padding,
+                lineHeight: parseFloat(style.lineHeight),
+            };
+        });
+        expect(text.lines).toBe(1);
+        expect(text.lineHeight).toBe(16);
+        expect(text.content).toBe(text.lineHeight);
+        expect(text.top - box.y).toBeCloseTo(box.y + box.height - text.bottom, 0);
+    }
 }
 
 /** Serves the repository's pages locally, so a link opened in a new tab stays offline. */
@@ -319,6 +352,7 @@ test.describe("on the demo editor", () => {
                         ).length,
                 );
                 expect(clipped).toBe(0);
+                await expectLinkTargets(dialog);
                 const result = await audit(page);
                 expect(result.violations).toEqual([]);
                 expect(result.contrastUndecided).toEqual([]);
@@ -345,6 +379,7 @@ test.describe("in the gallery", () => {
                 dialog.getByText("NGNE Gallery Editor 2.7.1", { exact: true }),
             ).toBeVisible();
             await expect(dialog.getByRole("definition")).toHaveText(["@ngne/core 0.8.5", "MIT"]);
+            await expectLinkTargets(dialog);
             const result = await audit(page);
             expect(result.violations).toEqual([]);
             expect(result.contrastUndecided).toEqual([]);

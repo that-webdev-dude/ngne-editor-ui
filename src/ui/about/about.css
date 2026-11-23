@@ -29,14 +29,25 @@
     margin: 0;
 }
 
+/*
+ * The negative margins take back the links' padding, so their text sits where it would
+ * without it and the dialog keeps its size: the hit areas reach into the gaps around the row.
+ */
 .about__links {
     display: flex;
     gap: var(--space-16);
+    margin-block: calc(-1 * var(--space-4));
     list-style: none;
 }
 
-/* Underlined, so a link is told from text by more than its colour. */
+/*
+ * Underlined, so a link is told from text by more than its colour. The padding gives each
+ * link a pointer target of at least 24 × 24 px (DESIGN §7, §9) around a 16 px line.
+ */
 .about__links a {
+    display: block;
+    min-width: var(--space-24);
+    padding-block: var(--space-4);
     color: var(--text);
     text-decoration: underline;
 }
