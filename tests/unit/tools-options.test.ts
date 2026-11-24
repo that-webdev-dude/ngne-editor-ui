@@ -133,4 +133,18 @@ describe("options that fit the context bar", () => {
     it("keep their order: a narrow option after a wide one does not jump ahead", () => {
         expect(fittingOptions([300, 20, 20], 300, 0, 0, 24)).toBe(0);
     });
+
+    it("count the command buttons after the options, each after its own space", () => {
+        // Two options, then three 60 px buttons 2 px apart: 50 + 2 × 112 + 72 + 2 × 62 = 470.
+        const items = [100, 100, 60, 60, 60];
+        const leading = [undefined, undefined, undefined, 2, 2];
+        expect(fittingOptions(items, 470, 50, 12, 24, leading)).toBe(5);
+        // The last button moves first: four take 408 and the trigger 36 more.
+        expect(fittingOptions(items, 469, 50, 12, 24, leading)).toBe(4);
+        expect(fittingOptions(items, 444, 50, 12, 24, leading)).toBe(4);
+        expect(fittingOptions(items, 443, 50, 12, 24, leading)).toBe(3);
+        // Without their own spaces each takes the bar's gap: 50 + 5 × 12 + 380 = 490.
+        expect(fittingOptions(items, 490, 50, 12, 24)).toBe(5);
+        expect(fittingOptions(items, 489, 50, 12, 24)).toBe(4);
+    });
 });

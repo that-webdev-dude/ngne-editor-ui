@@ -41,7 +41,7 @@ editor's own DESIGN.md names the package version it targets and adds only its ow
 | --- | --- | --- |
 | Menu bar | 36 px | Menus, tab strip in the centre, command palette trigger on the right |
 | Tool rail | 44 px wide (72 px in two columns) | 28 px tool buttons grouped by separators; footer slot at the bottom |
-| Context bar | 36 px | Options of the active tool only |
+| Context bar | 36 px | The active tool's name, options and command buttons, the overflow trigger, then the app's readouts |
 | Viewport | Flexible | Workspace colour around the document; no scroll bars |
 | Right dock | 264 px, resizable 220–360 | Sections, each collapsible |
 | Bottom region | Default min(200 px, 28% of window height), resizable 120 px–50% | Optional; Tab toggles it while the canvas has focus |
@@ -52,7 +52,8 @@ Overflow rules (the layout holds at the minimum window, 1280×720):
 - **Tool rail:** switches to two columns when one does not fit; never scrolls, never clips.
 - **Right dock:** scrolls vertically as one column; section headers stay clickable. An app may
   start sections collapsed under a window height it names.
-- **Context bar:** options that do not fit move into a trailing overflow menu.
+- **Context bar:** options and command buttons that do not fit move into a trailing overflow
+  menu, from the last button back; the readouts, a variant choice among them, stay in the bar.
 - **Tab strip:** a `tablist` centred between the menus and the palette trigger. Tabs are 28 px
   high, at most 200 px wide; the label sits between two 24 px columns, the right one the close
   control (shown on the selected tab and under the pointer, taking no press while hidden); the

@@ -11,8 +11,13 @@ import { createStore } from "zustand/vanilla";
 // the Paint set's fill and the Select set's magic wand. The floating selection's flag: while it
 // is up, the context bar shows the `*.contextbar.tsx` content in the options' place.
 
-/** A tool of the demo: the package's base with lucide icons, nothing of its own. */
-export type DemoTool = ToolBase<LucideIcon>;
+/**
+ * A tool of the demo: the package's base with lucide icons, and the name a variant goes by in
+ * the variant choice the demo draws in the context bar's readouts slot (SPEC §8).
+ */
+export interface DemoTool extends ToolBase<LucideIcon> {
+    variantLabel?: string;
+}
 
 export interface ToolStoreState {
     /** The id of the selected tool. */

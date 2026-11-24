@@ -4,8 +4,9 @@
 // an editor may pass as its own (SPEC §5), the F6 regions and the package commands
 // of the shell; the dock-panel, context-bar and status-field registries
 // (SPEC §1.3) and what the status bar reads; the tool base and the tool registry, generic over
-// the editor's tool type (BRIEF D18), the option values and what the tool rail and the context
-// bar read of the editor's active-tool store; the presentational tab strip (BRIEF D18).
+// the editor's tool type (BRIEF D18), with its options and command buttons, the option values
+// and what the tool rail and the context bar read of the editor's active-tool store; the
+// presentational tab strip (BRIEF D18).
 
 export { RegistrationError } from "../../model/modules.js";
 export { collectContextBarContent } from "../../model/registries/contextBar.js";
@@ -50,6 +51,7 @@ export type {
     RailSlot,
     RegisteredTool,
     ToggleToolOption,
+    ToolAction,
     ToolBase,
     ToolHoldKey,
     ToolIcon,

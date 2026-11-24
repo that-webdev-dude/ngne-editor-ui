@@ -60,6 +60,20 @@ export interface ToolHoldKey {
 }
 
 /**
+ * A command button of a tool in the context bar (SPEC §8): after the options, before the
+ * readouts, in the overflow menu with them when it does not fit. It runs its command and is
+ * disabled while the command is; the command is the editor's.
+ */
+export interface ToolAction<Icon = unknown> {
+    /** The id of the command it runs: "stamp.rotateLeft". */
+    commandId: string;
+    /** Text of a text button, or the accessible name and tooltip of an icon button. */
+    label: string;
+    /** Makes it an icon button. */
+    icon?: Icon;
+}
+
+/**
  * What the tool rail and the context bar need of a tool (SPEC §8). Every other field of an
  * editor's tool, its handlers among them, is the editor's own.
  */
@@ -89,6 +103,8 @@ export interface ToolBase<Icon = unknown> {
     variantOf?: string;
     /** The options the context bar shows while the tool is active. */
     options?: readonly ToolOptionSpec[];
+    /** The command buttons the context bar shows after the options while the tool is active. */
+    actions?: readonly ToolAction<Icon>[];
     /**
      * The tool sets the tool is offered in, by the editor's names ("tile", "marker"), when the
      * editor offers one set at a time (the tilemap offers the tools of the active layer's kind).
@@ -107,6 +123,7 @@ export type RegisteredTool<Tool extends ToolBase> = Tool & {
     /** The module that registered it, as the module map keys it; used in error messages. */
     readonly source: string;
     readonly options: readonly ToolOptionSpec[];
+    readonly actions: NonNullable<Tool["actions"]>;
     /** Its position in the rail, or undefined when it is not in the rail. */
     readonly railOrder: number | undefined;
 };

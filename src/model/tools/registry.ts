@@ -7,6 +7,7 @@ import type {
     RegisteredTool,
     ToolBase,
     ToolIcon,
+    ToolAction,
     ToolModule,
     ToolOptionSpec,
 } from "./types.js";
@@ -15,8 +16,8 @@ import type {
 // editor's tool keys read it. Generic over the editor's tool type (BRIEF D18): the registry
 // checks and orders what `ToolBase` declares and hands back the editor's tools unchanged
 // otherwise. Registration errors throw a `RegistrationError` naming the module, so a broken
-// module stops the editor at startup: an id used twice, an invalid option, key or tool set, a
-// key that two tools of one tool set use.
+// module stops the editor at startup: an id used twice, an invalid option, action, key or tool
+// set, a key that two tools of one tool set use.
 
 export interface ToolRegistry<Tool extends ToolBase = ToolBase> {
     /** Adds a tool; returns the function that removes it. Throws `RegistrationError`. */
@@ -66,6 +67,24 @@ function checkOption(option: ToolOptionSpec, fail: (problem: string) => never): 
     }
 }
 
+/** Checks a tool's command buttons: each names a command and a label, no command twice. */
+function checkActions(actions: readonly ToolAction[], fail: (problem: string) => never): void {
+    // Checked although typed: a module may be plain JavaScript data.
+    if (!Array.isArray(actions)) fail("has actions that are not a list.");
+    const commands = new Set<string>();
+    for (const action of actions) {
+        const { commandId, label } = action as Partial<ToolAction>;
+        if (typeof commandId !== "string" || commandId.trim() === "") {
+            fail("has an action without a command id.");
+        }
+        if (typeof label !== "string" || label.trim() === "") {
+            fail(`has action "${commandId}" without a label.`);
+        }
+        if (commands.has(commandId)) fail(`lists action "${commandId}" twice.`);
+        commands.add(commandId);
+    }
+}
+
 /** The canonical form of `chord`; `fail` reports an invalid one. */
 function checkedChord(chord: string, fail: (problem: string) => never): string {
     try {
@@ -105,6 +124,8 @@ function resolveTool<Tool extends ToolBase>(
         if (keys.has(option.key)) fail(`lists option "${option.key}" twice.`);
         keys.add(option.key);
     }
+    const actions = spec.actions ?? [];
+    checkActions(actions, fail);
     for (const chord of [spec.shortcut, spec.hold?.key]) {
         if (chord !== undefined) checkedChord(chord, fail);
     }
@@ -123,6 +144,7 @@ function resolveTool<Tool extends ToolBase>(
         railOrder: spec.railOrder ?? planned?.railOrder,
         toolSets: spec.toolSets ?? planned?.toolSets,
         options,
+        actions: [...actions],
     } as RegisteredTool<Tool>;
     if (tool.railOrder !== undefined && tool.icon === undefined && !variant) {
         fail("is in the rail but has no icon.");

@@ -167,6 +167,7 @@ export const tools: DemoTool[] = [
         shortcut: "U",
         railOrder: 310,
         toolSets: PAINT_SET,
+        variantLabel: "Rectangle",
         options: [fill],
     },
     {
@@ -177,6 +178,7 @@ export const tools: DemoTool[] = [
         railOrder: 311,
         toolSets: PAINT_SET,
         variantOf: "rectangle",
+        variantLabel: "Ellipse",
         options: [fill],
     },
     {

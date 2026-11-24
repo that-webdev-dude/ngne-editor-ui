@@ -1,6 +1,7 @@
 import { collectCommandDialogs } from "../../model/registries/dialogs.js";
 import type { CommandDialogs } from "../messages/dialogRegistry.js";
 import { commandEntries } from "./entries/CommandsEntries.js";
+import { contextBarEntry } from "./entries/ContextBarEntry.js";
 import { LICENCES_DIALOG_MODULES, licencesEntry } from "./entries/LicencesEntry.js";
 import { MESSAGE_DIALOG_MODULES, messageEntries } from "./entries/MessagesEntries.js";
 import { primitiveEntries } from "./entries/PrimitivesEntries.js";
@@ -21,7 +22,7 @@ export const GALLERY_GROUPS: readonly GalleryGroup[] = [
     // SPEC §2 Command refresh, §7.1; DESIGN §4 Command palette, §7 Shortcut sheet
     { title: "Commands", entries: [...commandEntries, ...surfaceEntries] },
     { title: "About and licences", entries: [aboutEntry, licencesEntry] }, // DESIGN §7, SPEC §11
-    { title: "Shell", entries: [tabStripEntry, shellEntry] }, // DESIGN §2, SPEC §8
+    { title: "Shell", entries: [tabStripEntry, shellEntry, contextBarEntry] }, // DESIGN §2, SPEC §8
 ];
 
 /**

@@ -1,5 +1,7 @@
 import type { CommandModule } from "../../../model/commands/types.js";
-import type { AppInfo, BottomRegion } from "../../editorUi/config.js";
+import type { ModuleMap } from "../../../model/modules.js";
+import type { ToolModule } from "../../../model/tools/types.js";
+import type { AppInfo, BottomRegion, CommandRefreshSource } from "../../editorUi/config.js";
 import { createEditorUi } from "../../editorUi/createEditorUi.js";
 import type { AnyEditorUi } from "../../editorUi/createEditorUi.js";
 
@@ -9,7 +11,7 @@ import type { AnyEditorUi } from "../../editorUi/createEditorUi.js";
 // what the instance stores (recent commands, layout).
 
 const MENUS = ["File", "Edit", "View", "Help"] as const;
-type Menu = (typeof MENUS)[number];
+export type FixtureMenu = (typeof MENUS)[number];
 
 const done = () => {};
 
@@ -24,7 +26,7 @@ const FIXTURE_ABOUT: Omit<AppInfo, "packageName"> = {
     changelogUrl: `${REPOSITORY_URL}/blob/main/CHANGELOG.md`,
 };
 
-const FIXTURE_COMMANDS: Readonly<Record<string, CommandModule<Menu, never>>> = {
+const FIXTURE_COMMANDS: Readonly<Record<string, CommandModule<FixtureMenu, never>>> = {
     "./gallery/surfaces.commands.ts": {
         plannedCommands: [
             {
@@ -88,16 +90,22 @@ const FIXTURE_COMMANDS: Readonly<Record<string, CommandModule<Menu, never>>> = {
 export interface FixtureFrame {
     bottomRegion?: BottomRegion | null;
     railFooterHeight?: number;
+    /** Command modules registered after the fixture's own. */
+    commands?: ModuleMap<CommandModule<FixtureMenu, never>>;
+    /** The `*.tools.ts` modules of the instance's tool registry. */
+    tools?: ModuleMap<ToolModule>;
+    refreshOn?: readonly CommandRefreshSource[];
 }
 
 /** An instance of the fixture configuration under `id`, with the frame `frame` gives it. */
 export function fixtureInstance(id: string, frame: FixtureFrame = {}): AnyEditorUi {
-    return createEditorUi<Menu>({
+    const { commands = {}, tools = {}, ...rest } = frame;
+    return createEditorUi<FixtureMenu>({
         id,
         productName: "NGNE Gallery Editor",
         about: { packageName: id, ...FIXTURE_ABOUT },
         menus: MENUS,
-        modules: { commands: FIXTURE_COMMANDS },
-        ...frame,
+        modules: { commands: { ...FIXTURE_COMMANDS, ...commands }, tools },
+        ...rest,
     });
 }

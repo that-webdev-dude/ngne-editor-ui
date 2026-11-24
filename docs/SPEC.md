@@ -339,10 +339,18 @@ bar. An app that passes no sources behaves as one before them.
   selecting a tool and setting an option, `subscribe`), as the status bar reads `status`;
   without it they show no tools. A tool chosen with the pointer sends the focus to
   `toolFocus()`, the viewport target (§6) by default; from the keyboard the focus stays.
-- **Context bar:** the active tool's options from the registry, then the trigger of the overflow
-  menu that holds the options that do not fit (from the last back), then an optional trailing
-  readouts slot (`contextReadouts`, the tilemap's tool readouts), never in the overflow menu.
-  `*.contextbar.tsx` content, while shown, takes the place of the options and the readouts.
+- **Context bar:** the active tool's name and its options from the registry, then its command
+  buttons (`actions`, BRIEF D27) in one group, then the trigger of the overflow menu, then an
+  optional trailing readouts slot (`contextReadouts`, the tilemap's tool readouts). Options and
+  buttons that do not fit move into the overflow menu from the last back, so the buttons go
+  before any option; the readouts slot never does. A button is an icon button named by its
+  label when the action has an icon, else a text button showing it; its tooltip shows the
+  command's first key. It runs its command (`runCommand`), is disabled while the command is or
+  while no command has its id, and carries `data-tool-action="<command id>"`, a public DOM hook
+  an editor's tests find it by; the copies the bar measures carry none. A tool's variant choice
+  (the tilemap's Shape Fill: Rectangle / Ellipse) is the editor's: it draws it in the readouts
+  slot, where it stays in the bar (BRIEF D27). `*.contextbar.tsx` content, while shown, takes
+  the place of the options, the buttons and the readouts.
 - **Dock, menu bar:** from their registries; menus from the command registry.
 - **Status bar:** the frame renders the `*.status.ts` fields in registry order, left to right,
   then the hint on the right; a field declares its reserved width. What the fields read and the
@@ -366,8 +374,10 @@ bar. An app that passes no sources behaves as one before them.
   with none left to the viewport target (`data-viewport-focus`).
 - **Tools (BRIEF D18):** `ToolBase` holds what the rail and context bar need: id, title
   (`label`), icon, key (`shortcut`, and a `hold` key), group (`railOrder`, whose hundreds are
-  the rail's groups), variant-of (`variantOf`), option specs (`options`), tool sets
-  (`toolSets`). Apps extend it with pointer and stroke behaviour; the registry is generic over
+  the rail's groups), variant-of (`variantOf`), option specs (`options`), command buttons
+  (`actions`: `ToolAction`, a command id, a label and an optional icon of the tool's icon type),
+  tool sets (`toolSets`). Registration refuses an action without a command id or a label, and
+  a command listed twice by one tool; the command itself is the editor's. Apps extend it with pointer and stroke behaviour; the registry is generic over
   `Tool extends ToolBase`. The app may create the registry itself and pass it (`sources.tools`,
   §5), so its own code reads the tools the shell shows, with no second catalogue.
   - Tool sets: an editor that offers one set of tools at a time (the tilemap's tools per layer

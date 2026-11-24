@@ -183,6 +183,7 @@ const API: Record<string, readonly string[]> = {
         "TabStripLeading",
         "TabStripProps",
         "ToggleToolOption",
+        "ToolAction",
         "ToolBase",
         "ToolHoldKey",
         "ToolIcon",

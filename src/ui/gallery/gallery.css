@@ -401,6 +401,15 @@
     border: var(--border-width) solid var(--border);
 }
 
+/* The context bar entry's bar: the shell's context bar region, in the entry's width. */
+.gallery-context-bar {
+    display: flex;
+    align-items: center;
+    height: 36px;
+    padding: 0 var(--space-12);
+    border: var(--border-width) solid var(--border);
+}
+
 .gallery-shell__slot {
     display: grid;
     place-items: center;

@@ -1,14 +1,16 @@
 import { expect, test } from "@playwright/test";
-import type { Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 import { audit, boxOf, THEMES, uncaughtErrors } from "./gallery-support.ts";
-import { chooseDemoTheme, focus, openDemo, settle, viewport } from "./surfaces-support.ts";
+import { chooseDemoTheme, focus, openDemo, ran, settle, viewport } from "./surfaces-support.ts";
 
 // The context bar (SPEC §1.3, §8, DESIGN §2, §4) on the demo editor: the active tool's name and
-// its options in the tool's order, each in its control, changing the editor's store; the
-// options that do not fit, from the last one back, in a trailing overflow menu; the readouts
-// slot after them, never in that menu; a `*.contextbar.tsx` module's content in the options'
-// place; the options of a tool registered at run time (the demo's probe tool); both themes
-// with no WCAG 2.1 AA violation.
+// its options in the tool's order, each in its control, changing the editor's store; its
+// command buttons after the options, each running its command and disabled while the command
+// is; the options and buttons that do not fit, from the last button back, in a trailing
+// overflow menu; the readouts slot after them, the editor's variant choice among the readouts,
+// never in that menu; a `*.contextbar.tsx` module's content in the options' place; the options
+// of a tool registered at run time (the demo's probe tool); both themes with no WCAG 2.1 AA
+// violation.
 
 const AIRBRUSH = [
     "size",
@@ -30,12 +32,41 @@ const readouts = (page: Page) => bar(page).locator("[data-context-readouts]");
 const railButton = (page: Page, id: string) =>
     page.locator(`[data-region="tool-rail"] [data-tool="${id}"]`);
 
+/** The marquee's command buttons, in its order: two icon buttons, then two text buttons. */
+const MARQUEE_ACTIONS = [
+    "demo.select.all",
+    "demo.select.deselect",
+    "demo.select.invert",
+    "demo.select.crop",
+];
+const MARQUEE_OPTIONS = ["mode", "feather", "antiAlias"];
+
+const actionsIn = (scope: Locator) => scope.locator("[data-tool-action]");
+const barActions = (page: Page) => bar(page).locator(".context-bar > .context-actions");
+const action = (scope: Locator, command: string) =>
+    scope.locator(`[data-tool-action="${command}"]`);
+const actionIds = (scope: Locator) =>
+    actionsIn(scope).evaluateAll((items) =>
+        items.map((item) => item.getAttribute("data-tool-action") ?? ""),
+    );
+const readout = (page: Page, id: string) => bar(page).locator(`[data-tool-readout="${id}"] output`);
+
 const optionKeys = (scope: ReturnType<typeof inBar>) =>
     scope.evaluateAll((items) => items.map((item) => item.getAttribute("data-tool-option") ?? ""));
 
 async function selectAirbrush(page: Page) {
     await railButton(page, "airbrush").click();
     await expect(toolName(page)).toHaveText("Airbrush");
+    await settle(page);
+}
+
+async function selectMarquee(page: Page) {
+    await page
+        .getByRole("radiogroup", { name: "Tool set" })
+        .getByRole("radio", { name: "Select" })
+        .click();
+    await railButton(page, "marquee").click();
+    await expect(toolName(page)).toHaveText("Rectangular marquee");
     await settle(page);
 }
 
@@ -263,6 +294,171 @@ for (const theme of THEMES) {
         expect(closed.contrastChecked).toBeGreaterThan(0);
 
         await openOverflow(page);
+        const open = await audit(page);
+        expect(open.violations).toEqual([]);
+        expect(open.contrastUndecided).toEqual([]);
+    });
+}
+
+// --- Command buttons ------------------------------------------------------------------------
+
+test("a tool's command buttons render after its options and before the readouts, the variant choice among the readouts", async ({
+    page,
+}) => {
+    const errors = uncaughtErrors(page);
+    await page.setViewportSize({ width: 1536, height: 864 });
+    await selectMarquee(page);
+    // At 1536 px everything fits: the options, then the buttons in the tool's order.
+    expect(await optionKeys(inBar(page))).toEqual(MARQUEE_OPTIONS);
+    expect(await actionIds(bar(page))).toEqual(MARQUEE_ACTIONS);
+    await expect(trigger(page)).toHaveCount(0);
+    // Icon buttons named by their label, text buttons showing it.
+    await expect(actionsIn(bar(page))).toHaveText(["", "", "Invert", "Crop"]);
+    await expect(action(bar(page), "demo.select.all")).toHaveAccessibleName("Select All");
+    await expect(action(bar(page), "demo.select.deselect")).toHaveAccessibleName("Deselect");
+
+    // Name, options, the buttons' group, the readouts: left to right, inside the bar.
+    const lastOption = await boxOf(inBar(page).last());
+    const group = await boxOf(barActions(page));
+    const slot = await boxOf(readouts(page));
+    expect(group.x).toBeCloseTo(lastOption.x + lastOption.width + 12, 0);
+    expect(slot.x).toBeGreaterThan(group.x + group.width);
+    const region = await boxOf(bar(page));
+    expect(slot.x + slot.width).toBeLessThanOrEqual(region.x + region.width);
+
+    // The editor's variant choice is in the readouts slot, and selects the slot's variant.
+    const choice = readouts(page).locator('[data-tool-variant-choice="marquee"]');
+    await expect(choice.getByRole("radio")).toHaveText(["Rectangle", "Ellipse"]);
+    await expect(choice.getByRole("radio", { name: "Rectangle" })).toBeChecked();
+    await choice.getByRole("radio", { name: "Ellipse" }).click();
+    await expect(toolName(page)).toHaveText("Elliptical marquee");
+    await expect(railButton(page, "marquee")).toHaveAttribute(
+        "data-tool-variant",
+        "ellipse-marquee",
+    );
+    expect(await actionIds(bar(page))).toEqual(MARQUEE_ACTIONS);
+    await expect(
+        readouts(page)
+            .locator("[data-tool-variant-choice]")
+            .getByRole("radio", { name: "Ellipse" }),
+    ).toBeChecked();
+
+    // A tool without buttons shows none.
+    await railButton(page, "wand").click();
+    await expect(toolName(page)).toHaveText("Magic wand");
+    await expect(actionsIn(bar(page))).toHaveCount(0);
+    await expect(barActions(page)).toHaveCount(0);
+    expect(errors).toEqual([]);
+});
+
+test("at 1280 px the last command buttons move into the overflow menu first, before any option", async ({
+    page,
+}) => {
+    const errors = uncaughtErrors(page);
+    await selectMarquee(page);
+    // Every option stays in the bar; the first buttons stay, the rest move, in order.
+    expect(await optionKeys(inBar(page))).toEqual(MARQUEE_OPTIONS);
+    const shown = await actionIds(bar(page));
+    expect(shown.length).toBeGreaterThan(0);
+    expect(shown.length).toBeLessThan(MARQUEE_ACTIONS.length);
+    expect(shown).toEqual(MARQUEE_ACTIONS.slice(0, shown.length));
+    // The page has each shown button once: the measured copies carry no hook.
+    await expect(page.locator("[data-tool-action]")).toHaveCount(shown.length);
+
+    // The trigger after the buttons, the readouts after the trigger, all inside the bar.
+    const group = await boxOf(barActions(page));
+    const more = await boxOf(trigger(page));
+    expect(more.x).toBeGreaterThan(group.x + group.width);
+    expect((await boxOf(readouts(page))).x).toBeGreaterThan(more.x + more.width);
+    const region = await boxOf(bar(page));
+    expect(group.x + group.width).toBeLessThanOrEqual(region.x + region.width);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(1280);
+
+    // The menu holds the rest, the readouts none of them.
+    await openOverflow(page);
+    expect(await optionKeys(overflowMenu(page).locator("[data-tool-option]"))).toEqual([]);
+    expect(await actionIds(overflowMenu(page))).toEqual(MARQUEE_ACTIONS.slice(shown.length));
+    await expect(
+        overflowMenu(page).locator("[data-tool-readout], [data-tool-variant-choice]"),
+    ).toHaveCount(0);
+    await page.keyboard.press("Escape");
+    await expect(overflowMenu(page)).toHaveCount(0);
+
+    // Wider: every button fits; narrower again: the same fit.
+    await page.setViewportSize({ width: 1536, height: 864 });
+    await expect.poll(() => actionIds(bar(page))).toEqual(MARQUEE_ACTIONS);
+    await expect(trigger(page)).toHaveCount(0);
+    await page.setViewportSize({ width: 1280, height: 720 });
+    await expect.poll(() => actionIds(bar(page))).toEqual(shown);
+    expect(await optionKeys(inBar(page))).toEqual(MARQUEE_OPTIONS);
+    expect(errors).toEqual([]);
+});
+
+test("a command button runs its command and is disabled while its command is", async ({ page }) => {
+    const errors = uncaughtErrors(page);
+    await page.setViewportSize({ width: 1536, height: 864 });
+    await selectMarquee(page);
+    const selection = readout(page, "selection");
+    const enabled = () =>
+        actionsIn(bar(page)).evaluateAll((items) =>
+            items.map((item) => !(item as HTMLButtonElement).disabled),
+        );
+
+    // Nothing selected: only Select All is enabled.
+    await expect(selection).toHaveText("None");
+    expect(await enabled()).toEqual([true, false, false, false]);
+    await expect(action(bar(page), "demo.select.crop")).toBeDisabled();
+
+    // Each button runs its command; the others follow the state it leaves.
+    const before = (await ran(page)).length;
+    await action(bar(page), "demo.select.all").click();
+    await expect(selection).toHaveText("64 × 64");
+    await expect.poll(enabled).toEqual([true, true, true, true]);
+    await action(bar(page), "demo.select.invert").click();
+    await expect(selection).toHaveText("Inverted");
+    await action(bar(page), "demo.select.deselect").click();
+    await expect(selection).toHaveText("None");
+    await expect.poll(enabled).toEqual([true, false, false, false]);
+    expect((await ran(page)).slice(before)).toEqual(["Select All", "Invert Selection", "Deselect"]);
+
+    // A disabled button runs nothing.
+    await action(bar(page), "demo.select.crop").click({ force: true });
+    expect((await ran(page)).slice(before)).toHaveLength(3);
+
+    // In the overflow menu too: enabled with its command, and run from there.
+    await page.setViewportSize({ width: 1280, height: 720 });
+    await expect
+        .poll(async () => (await actionIds(bar(page))).length)
+        .toBeLessThan(MARQUEE_ACTIONS.length);
+    await openOverflow(page);
+    const crop = action(overflowMenu(page), "demo.select.crop");
+    await expect(crop).toBeDisabled();
+    await page.keyboard.press("Escape");
+    await action(bar(page), "demo.select.all").click();
+    await expect(selection).toHaveText("64 × 64");
+    await openOverflow(page);
+    await expect(crop).toBeEnabled();
+    await crop.click();
+    await expect(selection).toHaveText("None");
+    expect((await ran(page)).slice(-1)).toEqual(["Crop to Selection"]);
+    expect(errors).toEqual([]);
+});
+
+for (const theme of THEMES) {
+    test(`${theme}: the context bar with command buttons and its overflow menu pass axe`, async ({
+        page,
+    }) => {
+        if (theme === "light") await chooseDemoTheme(page, "light");
+        await selectMarquee(page);
+        await action(bar(page), "demo.select.all").click();
+        await expect(readout(page, "selection")).toHaveText("64 × 64");
+        const closed = await audit(page, '[data-region="context-bar"]');
+        expect(closed.violations).toEqual([]);
+        expect(closed.contrastUndecided).toEqual([]);
+        expect(closed.contrastChecked).toBeGreaterThan(0);
+
+        await openOverflow(page);
+        await expect(actionsIn(overflowMenu(page)).first()).toBeVisible();
         const open = await audit(page);
         expect(open.violations).toEqual([]);
         expect(open.contrastUndecided).toEqual([]);

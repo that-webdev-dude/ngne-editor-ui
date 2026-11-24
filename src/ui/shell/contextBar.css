@@ -1,6 +1,7 @@
 /*
- * The context bar's content (SPEC §8, DESIGN §2): the active tool's name, its options, the
- * overflow menu's trigger and the editor's readouts, in one row across the bar.
+ * The context bar's content (SPEC §8, DESIGN §2): the active tool's name, its options, its
+ * command buttons, the overflow menu's trigger and the editor's readouts, in one row across
+ * the bar.
  */
 .context-bar {
     position: relative;
@@ -19,6 +20,14 @@
     white-space: nowrap;
 }
 
+/* The active tool's command buttons, one group after its options. */
+.context-actions {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    gap: var(--space-2);
+}
+
 .context-readouts {
     display: inline-flex;
     flex: none;
@@ -32,7 +41,7 @@
     white-space: nowrap;
 }
 
-/* The options that do not fit, stacked in the overflow menu. */
+/* The options and command buttons that do not fit, stacked in the overflow menu. */
 .context-overflow__options {
     display: flex;
     flex-direction: column;

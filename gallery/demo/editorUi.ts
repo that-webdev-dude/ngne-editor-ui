@@ -6,6 +6,7 @@ import { DEMO_CONTEXTS, PANEL_SELECTOR } from "./keys.ts";
 import type { DemoContext } from "./keys.ts";
 import { PreferencesDialog } from "./PreferencesDialog.tsx";
 import { rowsStore } from "./rows.ts";
+import { selectionStore } from "./selection.ts";
 import { bottomRegionState, keyContextState, STATE_CONTEXTS, toolRegistry } from "./sources.ts";
 import { RAIL_FOOTER_HEIGHT, toolSetStore } from "./tools.ts";
 import type { DemoTool } from "./tools.ts";
@@ -71,7 +72,7 @@ export const editorUi = createEditorUi({
             eager: true,
         }),
     },
-    refreshOn: [rowsStore, toolSetStore],
+    refreshOn: [rowsStore, toolSetStore, selectionStore],
     surfaces: { preferences: PreferencesDialog },
     sources: { keyContextState, bottomRegion: bottomRegionState, tools: toolRegistry },
 });

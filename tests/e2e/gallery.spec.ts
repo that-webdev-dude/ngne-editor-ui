@@ -7,8 +7,9 @@ import { audit, entry, horizontalOverflow } from "./gallery-support.ts";
 // The gallery (SPEC §12) as Pages serves it: the frame in both themes, the Tokens entry with
 // every DESIGN §3.1 colour at its value, and every entry, the package's and then the site's
 // own (the demo editor), at 1280×720 and at 125% browser zoom (DESIGN §9), with no WCAG 2.1 AA
-// violation; the navigation to each entry by its id; the shell frame's slots, the licences
-// dialog and the window-too-small notice; and the link to its licences file (SPEC §11).
+// violation; the navigation to each entry by its id; the shell frame's slots, the context bar's
+// parts, the licences dialog and the window-too-small notice; and the link to its licences file
+// (SPEC §11).
 
 type Theme = "dark" | "light";
 const THEMES: readonly Theme[] = ["dark", "light"];
@@ -236,6 +237,7 @@ const PACKAGE_ENTRIES = [
     "licences",
     "tab-strip",
     "app-shell",
+    "context-bar",
 ] as const;
 
 /** The site's own entries, which it passes to the gallery as an app does. */
@@ -408,6 +410,67 @@ test("the shell frame shows each slot in its region, and noDocument in the viewp
     );
     await page.keyboard.press("Escape");
     await expect(dialog).toHaveCount(0);
+});
+
+test("the context bar entry shows a tool's options, command buttons and readouts, the variant choice among the readouts", async ({
+    page,
+}) => {
+    await page.setViewportSize({ width: 1536, height: 864 });
+    await openGallery(page);
+    const section = entry(page, "context-bar");
+    await section.scrollIntoViewIfNeeded();
+    const bar = section.locator(".context-bar");
+    const parts = bar.locator(
+        ":scope > [data-context-tool], :scope > [data-tool-option], :scope > .context-actions, :scope > [data-context-overflow], :scope > [data-context-readouts]",
+    );
+    // In the bar's order: name, options, buttons, readouts; everything fits, so no trigger.
+    expect(
+        await parts.evaluateAll((items) =>
+            items.map(
+                (item) =>
+                    item.getAttribute("data-context-tool") ??
+                    item.getAttribute("data-tool-option") ??
+                    (item.hasAttribute("data-context-readouts") ? "readouts" : item.className),
+            ),
+        ),
+    ).toEqual(["rectangle", "fill", "margin", "context-actions", "readouts"]);
+    let right = 0;
+    for (const part of await parts.all()) {
+        const box = await part.boundingBox();
+        expect(box!.x).toBeGreaterThanOrEqual(right);
+        right = box!.x + box!.width;
+    }
+    const actions = bar.locator("[data-tool-action]");
+    await expect(actions).toHaveText(["", "", "Flip", "Reset"]);
+    await expect(actions.first()).toHaveAccessibleName("Rotate Stamp Left");
+
+    // The readouts slot holds the editor's variant choice and readouts.
+    const readouts = bar.locator("[data-context-readouts]");
+    const choice = readouts.locator('[data-tool-variant-choice="rectangle"]');
+    await expect(choice.getByRole("radio")).toHaveText(["Rectangle", "Ellipse"]);
+    const turn = readouts.locator('[data-tool-readout="turn"] output');
+    const flip = readouts.locator('[data-tool-readout="flip"] output');
+    await expect(turn).toHaveText("0°");
+
+    // The buttons run their commands; without a stamp they are disabled.
+    await bar.locator('[data-tool-action="gallery.stamp.rotateRight"]').click();
+    await expect(turn).toHaveText("90°");
+    await bar.locator('[data-tool-action="gallery.stamp.flip"]').click();
+    await expect(flip).toHaveText("On");
+    await bar.locator('[data-tool-action="gallery.stamp.reset"]').click();
+    await expect(turn).toHaveText("0°");
+    await expect(flip).toHaveText("Off");
+    const placed = section.getByRole("button", { name: "Stamp placed" });
+    await placed.click();
+    await expect(placed).toHaveAttribute("aria-pressed", "false");
+    for (const button of await actions.all()) await expect(button).toBeDisabled();
+    await placed.click();
+    for (const button of await actions.all()) await expect(button).toBeEnabled();
+
+    // The variant choice selects the other variant, which has the same buttons.
+    await choice.getByRole("radio", { name: "Ellipse" }).click();
+    await expect(bar.locator("[data-context-tool]")).toHaveText("Ellipse");
+    await expect(actions).toHaveCount(4);
 });
 
 test("the licences entry shows the gallery's licences.txt, and links it when it cannot be read", async ({

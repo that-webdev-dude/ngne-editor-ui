@@ -51,10 +51,12 @@ export function optionValues(
 }
 
 /**
- * How many of a tool's options the context bar shows (DESIGN §2): the most, in order, that fit
- * `available` with room for the overflow menu's trigger when any is left over; the rest move
- * into that menu. `widths` are the options' widths, `used` the width the bar's other items
- * take with their gaps, `gap` the space before each option and before the trigger.
+ * How many of a tool's options and command buttons, in that order, the context bar shows
+ * (DESIGN §2): the most, in order, that fit `available` with room for the overflow menu's
+ * trigger when any is left over; the rest move into that menu. `widths` are the items' widths,
+ * `used` the width the bar's other items take with their gaps, `gap` the space before the
+ * trigger and before each item that `leading` gives no space of its own (a command button
+ * after another, in their tighter group).
  */
 export function fittingOptions(
     widths: readonly number[],
@@ -62,10 +64,11 @@ export function fittingOptions(
     used: number,
     gap: number,
     trigger: number,
+    leading: readonly (number | undefined)[] = [],
 ): number {
     let total = used;
     for (const [index, width] of widths.entries()) {
-        total += gap + width;
+        total += (leading[index] ?? gap) + width;
         const rest = index + 1 < widths.length ? gap + trigger : 0;
         if (total + rest > available) return index;
     }

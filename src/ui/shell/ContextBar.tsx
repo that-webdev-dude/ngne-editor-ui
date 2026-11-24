@@ -1,4 +1,5 @@
 import { Ellipsis } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { useCallback, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { ReactNode } from "react";
 import { createPortal } from "react-dom";
@@ -9,11 +10,15 @@ import {
 import { fittingOptions, optionControl } from "../../model/tools/options.js";
 import type {
     RegisteredTool,
+    ToolAction,
     ToolBase,
     ToolOptionSpec,
     ToolOptionValue,
 } from "../../model/tools/types.js";
+import { runCommand } from "../commands/runCommand.js";
+import { useCommandValue } from "../commands/useCommands.js";
 import { useEditorUi } from "../editorUi/context.js";
+import { Button } from "../primitives/Button.js";
 import { Icon } from "../primitives/Icon.js";
 import { IconButton } from "../primitives/IconButton.js";
 import { NumberField } from "../primitives/NumberField.js";
@@ -21,14 +26,16 @@ import { Popover } from "../primitives/Popover.js";
 import { SegmentedControl } from "../primitives/SegmentedControl.js";
 import { Select } from "../primitives/Select.js";
 import { Toggle } from "../primitives/Toggle.js";
+import { Tooltip } from "../primitives/Tooltip.js";
 import { useToolState } from "./useToolState.js";
 import type { ToolStateSource } from "./useToolState.js";
 
 // The context bar (SPEC §8, DESIGN §2, §4): the active tool's name, then its options in the
-// order the tool lists them, each in the control its kind calls for, then the editor's
-// readouts. Options that do not fit move, from the last one back, into a trailing overflow
-// menu; the readouts never do. While `*.contextbar.tsx` content is shown, it takes the place
-// of the options and the readouts. Empty while no registered tool is active.
+// order the tool lists them, each in the control its kind calls for, then its command buttons
+// in one group, then the editor's readouts. Options and buttons that do not fit move, from the
+// last button back, into a trailing overflow menu; the readouts never do. While
+// `*.contextbar.tsx` content is shown, it takes the place of the options, the buttons and the
+// readouts. Empty while no registered tool is active.
 
 /** The overflow menu's trigger and accessible name. */
 export const CONTEXT_OVERFLOW_LABEL = "More options";
@@ -104,13 +111,76 @@ function OptionField({ option, value, onChange, measured = false }: Readonly<Opt
     }
 }
 
+/**
+ * One command button of the active tool: an icon button, or a text button, which shows its key
+ * in a tooltip when its command has one. It runs its command and is disabled while the command
+ * is, or while no command has its id.
+ */
+function ActionButton({ action }: Readonly<{ action: ToolAction }>) {
+    const { commands } = useEditorUi();
+    const { commandId, label, icon } = action;
+    const enabled = useCommandValue((registry) => registry.get(commandId)?.enabled() ?? false);
+    const shortcut = useCommandValue((registry) => registry.get(commandId)?.shortcuts[0]);
+    const run = () => runCommand(commands, commandId);
+    if (icon !== undefined) {
+        return (
+            <IconButton
+                data-tool-action={commandId}
+                label={label}
+                shortcut={shortcut}
+                disabled={!enabled}
+                onClick={run}
+            >
+                <Icon icon={icon as LucideIcon} />
+            </IconButton>
+        );
+    }
+    const button = (
+        <Button data-tool-action={commandId} disabled={!enabled} onClick={run}>
+            {label}
+        </Button>
+    );
+    return shortcut ? (
+        <Tooltip label={label} shortcut={shortcut}>
+            {button}
+        </Tooltip>
+    ) : (
+        button
+    );
+}
+
+/**
+ * A copy of a command button that is only measured: the same box, without the tooltip, the
+ * command and `data-tool-action`, so the page has one of each.
+ */
+function MeasuredAction({ action }: Readonly<{ action: ToolAction }>) {
+    return action.icon === undefined ? (
+        <Button>{action.label}</Button>
+    ) : (
+        <button type="button" className="ui-icon-button">
+            <Icon icon={action.icon as LucideIcon} />
+        </button>
+    );
+}
+
+/** The command buttons of the active tool, in one group (DESIGN §2). */
+function ActionGroup({ actions }: Readonly<{ actions: readonly ToolAction[] }>) {
+    return (
+        <span className="context-actions">
+            {actions.map((action) => (
+                <ActionButton key={action.commandId} action={action} />
+            ))}
+        </span>
+    );
+}
+
 interface ToolOptionsProps<Tool extends ToolBase> {
     tool: RegisteredTool<Tool>;
     tools: ToolStateSource<Tool>;
     readouts: ReactNode;
 }
 
-/** The options of the active tool with the overflow menu, then the readouts. */
+/** The options and command buttons of the active tool, the overflow menu, then the readouts. */
 function ToolOptions<Tool extends ToolBase>({
     tool,
     tools,
@@ -118,7 +188,7 @@ function ToolOptions<Tool extends ToolBase>({
 }: Readonly<ToolOptionsProps<Tool>>) {
     const bar = useRef<HTMLDivElement>(null);
     const measure = useRef<HTMLDivElement>(null);
-    const [fit, setFit] = useState(tool.options.length);
+    const [fit, setFit] = useState(tool.options.length + tool.actions.length);
     // Counts the bar's resizes, so the fit below is measured again after each.
     const [resized, setResized] = useState(0);
     const values = tools.options(tool);
@@ -140,7 +210,14 @@ function ToolOptions<Tool extends ToolBase>({
         if (!element || !layer) return;
         const gap = Number.parseFloat(getComputedStyle(element).columnGap) || 0;
         const width = (item: Element | null) => item?.getBoundingClientRect().width ?? 0;
-        const widths = [...layer.querySelectorAll("[data-measure-option]")].map(width);
+        // The options', then the buttons' widths, in the bar's order; a button after another
+        // takes its group's tighter gap.
+        const widths = [...layer.querySelectorAll("[data-measure-item]")].map(width);
+        const group = layer.querySelector("[data-measure-actions]");
+        const actionGap = group ? Number.parseFloat(getComputedStyle(group).columnGap) || 0 : 0;
+        const leading = widths.map((_, index) =>
+            index > tool.options.length ? actionGap : undefined,
+        );
         // The name, with the margin after it.
         const name = element.querySelector(":scope > [data-context-tool]");
         const nameWidth = name
@@ -154,6 +231,7 @@ function ToolOptions<Tool extends ToolBase>({
             nameWidth + readoutsWidth,
             gap,
             width(layer.querySelector("[data-measure-trigger]")),
+            leading,
         );
         setFit((current) => (current === next ? current : next));
     }, [tool, values, readouts, resized]);
@@ -168,6 +246,9 @@ function ToolOptions<Tool extends ToolBase>({
     );
     const shown = tool.options.slice(0, fit);
     const overflow = tool.options.slice(fit);
+    const actionsShown = Math.max(0, fit - tool.options.length);
+    const shownActions = tool.actions.slice(0, actionsShown);
+    const overflowActions = tool.actions.slice(actionsShown);
 
     return (
         <div className="context-bar" ref={bar}>
@@ -175,7 +256,8 @@ function ToolOptions<Tool extends ToolBase>({
                 {tool.label}
             </span>
             {shown.map(field)}
-            {overflow.length === 0 ? null : (
+            {shownActions.length === 0 ? null : <ActionGroup actions={shownActions} />}
+            {overflow.length === 0 && overflowActions.length === 0 ? null : (
                 <Popover
                     label={CONTEXT_OVERFLOW_LABEL}
                     side="bottom"
@@ -189,6 +271,9 @@ function ToolOptions<Tool extends ToolBase>({
                 >
                     <div className="context-overflow__options" data-context-overflow-menu="">
                         {overflow.map(field)}
+                        {overflowActions.length === 0 ? null : (
+                            <ActionGroup actions={overflowActions} />
+                        )}
                     </div>
                 </Popover>
             )}
@@ -198,7 +283,7 @@ function ToolOptions<Tool extends ToolBase>({
                 </span>
             ) : null}
             {/*
-             * Every option at its natural width, for the fit above: unseen, so neither
+             * Every option and button at its natural width, for the fit above: unseen, so neither
              * focusable nor under the pointer (visibility), and out of the accessibility tree.
              * Not `inert`, which the page keeps for the layers outside a modal one (DESIGN §9).
              * On the page's body, outside every region: an editor's queries for the controls
@@ -208,7 +293,7 @@ function ToolOptions<Tool extends ToolBase>({
                 <div className="context-bar__measure" ref={measure} aria-hidden="true">
                     <div className="context-bar__measure-row">
                         {tool.options.map((option) => (
-                            <span key={option.key} data-measure-option={option.key}>
+                            <span key={option.key} data-measure-item={option.key}>
                                 <OptionField
                                     option={option}
                                     value={values[option.key] ?? option.default}
@@ -217,6 +302,18 @@ function ToolOptions<Tool extends ToolBase>({
                                 />
                             </span>
                         ))}
+                        {tool.actions.length === 0 ? null : (
+                            <span className="context-actions" data-measure-actions="">
+                                {tool.actions.map((action) => (
+                                    <span
+                                        key={action.commandId}
+                                        data-measure-item={action.commandId}
+                                    >
+                                        <MeasuredAction action={action} />
+                                    </span>
+                                ))}
+                            </span>
+                        )}
                         <span className="context-bar__measure-trigger" data-measure-trigger="" />
                     </div>
                 </div>,
@@ -229,7 +326,10 @@ function ToolOptions<Tool extends ToolBase>({
 export interface ContextBarProps<Tool extends ToolBase = ToolBase> {
     /** The editor's active-tool store; without it the bar is empty. */
     tools?: ToolStateSource<Tool>;
-    /** The editor's readouts after the options (SPEC §8); never in the overflow menu. */
+    /**
+     * The editor's readouts after the options and command buttons, a tool's variant choice
+     * among them (SPEC §8); never in the overflow menu.
+     */
     readouts?: ReactNode;
 }
 

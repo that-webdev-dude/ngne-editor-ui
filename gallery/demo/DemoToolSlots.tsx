@@ -1,16 +1,29 @@
 import { useEditorUi } from "@ngne/editor-ui";
 import { SegmentedControl, Toggle } from "@ngne/editor-ui/primitives";
+import { slotOf } from "@ngne/editor-ui/shell";
 import { useState, useSyncExternalStore } from "react";
 import { useStore } from "zustand";
 import { probeToolRegistered, setProbeTool } from "./probeTool.ts";
+import { selectionStore, selectionText } from "./selection.ts";
 import { toolRegistry } from "./sources.ts";
-import { floatingStore, setFloating, setToolSet, TOOL_SETS, toolSetStore } from "./tools.ts";
+import {
+    floatingStore,
+    SELECT_SET,
+    selectTool,
+    setFloating,
+    setToolSet,
+    TOOL_SETS,
+    toolSetStore,
+    toolStore,
+} from "./tools.ts";
 
 // The demo editor's tool slots (SPEC §8): the rail footer, two colour chips in the height the
 // configuration reserves (`railFooterHeight`), which swap when either is pressed; the context
-// bar's readouts, after the options; and the controls in the viewport that change what the
-// rail's filter reads (the tool set), float a selection (the `*.contextbar.tsx` content) and
-// register the probe tool at run time.
+// bar's readouts slot, after the options and the command buttons: the variant choice of the
+// active tool's rail slot, the selection while a selection tool is active, and the canvas
+// size; and the controls in the viewport that change what the rail's filter reads (the tool
+// set), float a selection (the `*.contextbar.tsx` content) and register the probe tool at run
+// time.
 
 export function DemoRailFooter() {
     const [swapped, setSwapped] = useState(false);
@@ -30,12 +43,54 @@ export function DemoRailFooter() {
     );
 }
 
-export function DemoReadouts() {
+/** A readout of the context bar: its label and the text it reads now. */
+function Readout({ id, label, text }: Readonly<{ id: string; label: string; text: string }>) {
     return (
-        <span className="ui-field" data-tool-readout="canvas">
-            <span className="ui-field__label">Canvas</span>
-            <output className="context-readout">64 × 64</output>
+        <span className="ui-field" data-tool-readout={id}>
+            <span className="ui-field__label">{label}</span>
+            <output className="context-readout">{text}</output>
         </span>
+    );
+}
+
+/**
+ * The variants of the active tool's rail slot that name themselves (`variantLabel`), as a
+ * segmented control that selects one: the readouts slot is where an editor draws a variant
+ * choice (SPEC §8 Context bar); it never moves into the overflow menu.
+ */
+function VariantChoice({ activeId }: Readonly<{ activeId: string }>) {
+    useSyncExternalStore(toolRegistry.subscribe, toolRegistry.version);
+    const tool = toolRegistry.get(activeId);
+    if (!tool) return null;
+    const slot = toolRegistry.railSlots().find((each) => each.id === slotOf(tool));
+    const variants = (slot?.variants ?? []).flatMap((each) =>
+        each.variantLabel === undefined ? [] : [{ value: each.id, label: each.variantLabel }],
+    );
+    if (!slot || variants.length < 2) return null;
+    return (
+        <span className="ui-field" data-tool-variant-choice={slot.id}>
+            <SegmentedControl
+                label="Variant"
+                value={tool.id}
+                onChange={selectTool}
+                options={variants}
+            />
+        </span>
+    );
+}
+
+export function DemoReadouts() {
+    const activeId = useStore(toolStore, (state) => state.selected);
+    const selection = useStore(selectionStore, (state) => state.selection);
+    const selecting = toolRegistry.get(activeId)?.toolSets?.some((set) => SELECT_SET.includes(set));
+    return (
+        <>
+            <VariantChoice activeId={activeId} />
+            {selecting ? (
+                <Readout id="selection" label="Selection" text={selectionText(selection)} />
+            ) : null}
+            <Readout id="canvas" label="Canvas" text="64 × 64" />
+        </>
     );
 }
 
