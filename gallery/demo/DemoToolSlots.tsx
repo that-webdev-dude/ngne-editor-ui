@@ -4,7 +4,6 @@ import { slotOf } from "@ngne/editor-ui/shell";
 import { useState, useSyncExternalStore } from "react";
 import { useStore } from "zustand";
 import { probeToolRegistered, setProbeTool } from "./probeTool.ts";
-import { selectionStore, selectionText } from "./selection.ts";
 import { toolRegistry } from "./sources.ts";
 import {
     floatingStore,
@@ -20,8 +19,8 @@ import {
 // The demo editor's tool slots (SPEC §8): the rail footer, two colour chips in the height the
 // configuration reserves (`railFooterHeight`), which swap when either is pressed; the context
 // bar's readouts slot, after the options and the command buttons: the variant choice of the
-// active tool's rail slot, the selection while a selection tool is active, and the canvas
-// size; and the controls in the viewport that change what the rail's filter reads (the tool
+// active tool's rail slot, then the canvas size unless a selection tool is active, which
+// leaves the bar's room to its buttons; and the controls in the viewport that change what the rail's filter reads (the tool
 // set), float a selection (the `*.contextbar.tsx` content) and register the probe tool at run
 // time.
 
@@ -81,15 +80,11 @@ function VariantChoice({ activeId }: Readonly<{ activeId: string }>) {
 
 export function DemoReadouts() {
     const activeId = useStore(toolStore, (state) => state.selected);
-    const selection = useStore(selectionStore, (state) => state.selection);
     const selecting = toolRegistry.get(activeId)?.toolSets?.some((set) => SELECT_SET.includes(set));
     return (
         <>
             <VariantChoice activeId={activeId} />
-            {selecting ? (
-                <Readout id="selection" label="Selection" text={selectionText(selection)} />
-            ) : null}
-            <Readout id="canvas" label="Canvas" text="64 × 64" />
+            {selecting ? null : <Readout id="canvas" label="Canvas" text="64 × 64" />}
         </>
     );
 }

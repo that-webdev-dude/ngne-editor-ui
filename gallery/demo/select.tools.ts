@@ -1,5 +1,6 @@
 import type { ToolAction } from "@ngne/editor-ui/shell";
 import {
+    ArrowLeftRight,
     CircleDashed,
     Lasso,
     LassoSelect,
@@ -13,8 +14,10 @@ import type { LucideIcon } from "lucide-react";
 import {
     CROP_TO_SELECTION_COMMAND,
     DESELECT_COMMAND,
+    FILL_SELECTION_COMMAND,
     INVERT_SELECTION_COMMAND,
     SELECT_ALL_COMMAND,
+    STROKE_SELECTION_COMMAND,
 } from "./selection.ts";
 import { SELECT_SET } from "./tools.ts";
 import type { DemoTool } from "./tools.ts";
@@ -23,9 +26,10 @@ import type { DemoTool } from "./tools.ts";
 // Select tool set. The marquee and the lasso each have a variant on the same slot, with its own
 // key, and a name in the variant choice the demo draws in the readouts slot. The magic wand's
 // key, G, is the Paint set's fill's too: the sets are never offered together, so the registry
-// lets them share it (SPEC §8 Tools). The marquees have command buttons, two icon buttons and
-// two text buttons, which the context bar draws after their options; at 1280 px the last of
-// them move into its overflow menu.
+// lets them share it (SPEC §8 Tools). The marquees have command buttons, three icon buttons and
+// three text buttons, which the context bar draws after their options. At 1280 px the first
+// fit and the last move into its overflow menu, with room to spare either way for fonts wider
+// or narrower than the reference machine's (a CI runner's fallback font).
 
 const mode = {
     key: "mode",
@@ -49,13 +53,13 @@ const feather = {
     default: 0,
 } as const;
 
-const antiAlias = { key: "antiAlias", label: "Anti-alias", kind: "toggle", default: true } as const;
-
 const selectionActions: ToolAction<LucideIcon>[] = [
     { commandId: SELECT_ALL_COMMAND, label: "Select All", icon: SquareDashedMousePointer },
     { commandId: DESELECT_COMMAND, label: "Deselect", icon: SquareX },
-    { commandId: INVERT_SELECTION_COMMAND, label: "Invert" },
-    { commandId: CROP_TO_SELECTION_COMMAND, label: "Crop" },
+    { commandId: INVERT_SELECTION_COMMAND, label: "Invert Selection", icon: ArrowLeftRight },
+    { commandId: CROP_TO_SELECTION_COMMAND, label: "Crop to selection" },
+    { commandId: FILL_SELECTION_COMMAND, label: "Fill selection" },
+    { commandId: STROKE_SELECTION_COMMAND, label: "Stroke selection" },
 ];
 
 export const tools: DemoTool[] = [
@@ -67,7 +71,7 @@ export const tools: DemoTool[] = [
         railOrder: 100,
         toolSets: SELECT_SET,
         variantLabel: "Rectangle",
-        options: [mode, feather, antiAlias],
+        options: [mode, feather],
         actions: selectionActions,
     },
     {
@@ -79,7 +83,7 @@ export const tools: DemoTool[] = [
         toolSets: SELECT_SET,
         variantOf: "marquee",
         variantLabel: "Ellipse",
-        options: [mode, feather, antiAlias],
+        options: [mode, feather],
         actions: selectionActions,
     },
     {

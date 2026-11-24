@@ -32,14 +32,19 @@ const readouts = (page: Page) => bar(page).locator("[data-context-readouts]");
 const railButton = (page: Page, id: string) =>
     page.locator(`[data-region="tool-rail"] [data-tool="${id}"]`);
 
-/** The marquee's command buttons, in its order: two icon buttons, then two text buttons. */
+/**
+ * The marquee's command buttons, in its order: three icon buttons, then three text buttons. At
+ * 1280 px some fit and the rest move, whatever the font (select.tools.ts).
+ */
 const MARQUEE_ACTIONS = [
     "demo.select.all",
     "demo.select.deselect",
     "demo.select.invert",
     "demo.select.crop",
+    "demo.select.fill",
+    "demo.select.stroke",
 ];
-const MARQUEE_OPTIONS = ["mode", "feather", "antiAlias"];
+const MARQUEE_OPTIONS = ["mode", "feather"];
 
 const actionsIn = (scope: Locator) => scope.locator("[data-tool-action]");
 const barActions = (page: Page) => bar(page).locator(".context-bar > .context-actions");
@@ -49,7 +54,6 @@ const actionIds = (scope: Locator) =>
     actionsIn(scope).evaluateAll((items) =>
         items.map((item) => item.getAttribute("data-tool-action") ?? ""),
     );
-const readout = (page: Page, id: string) => bar(page).locator(`[data-tool-readout="${id}"] output`);
 
 const optionKeys = (scope: ReturnType<typeof inBar>) =>
     scope.evaluateAll((items) => items.map((item) => item.getAttribute("data-tool-option") ?? ""));
@@ -313,7 +317,14 @@ test("a tool's command buttons render after its options and before the readouts,
     expect(await actionIds(bar(page))).toEqual(MARQUEE_ACTIONS);
     await expect(trigger(page)).toHaveCount(0);
     // Icon buttons named by their label, text buttons showing it.
-    await expect(actionsIn(bar(page))).toHaveText(["", "", "Invert", "Crop"]);
+    await expect(actionsIn(bar(page))).toHaveText([
+        "",
+        "",
+        "",
+        "Crop to selection",
+        "Fill selection",
+        "Stroke selection",
+    ]);
     await expect(action(bar(page), "demo.select.all")).toHaveAccessibleName("Select All");
     await expect(action(bar(page), "demo.select.deselect")).toHaveAccessibleName("Deselect");
 
@@ -398,49 +409,48 @@ test("a command button runs its command and is disabled while its command is", a
     const errors = uncaughtErrors(page);
     await page.setViewportSize({ width: 1536, height: 864 });
     await selectMarquee(page);
-    const selection = readout(page, "selection");
     const enabled = () =>
         actionsIn(bar(page)).evaluateAll((items) =>
             items.map((item) => !(item as HTMLButtonElement).disabled),
         );
+    const none = [true, false, false, false, false, false];
+    const all = [true, true, true, true, true, true];
 
     // Nothing selected: only Select All is enabled.
-    await expect(selection).toHaveText("None");
-    expect(await enabled()).toEqual([true, false, false, false]);
+    expect(await enabled()).toEqual(none);
     await expect(action(bar(page), "demo.select.crop")).toBeDisabled();
 
     // Each button runs its command; the others follow the state it leaves.
     const before = (await ran(page)).length;
     await action(bar(page), "demo.select.all").click();
-    await expect(selection).toHaveText("64 × 64");
-    await expect.poll(enabled).toEqual([true, true, true, true]);
+    await expect.poll(enabled).toEqual(all);
     await action(bar(page), "demo.select.invert").click();
-    await expect(selection).toHaveText("Inverted");
+    await action(bar(page), "demo.select.fill").click();
     await action(bar(page), "demo.select.deselect").click();
-    await expect(selection).toHaveText("None");
-    await expect.poll(enabled).toEqual([true, false, false, false]);
-    expect((await ran(page)).slice(before)).toEqual(["Select All", "Invert Selection", "Deselect"]);
+    await expect.poll(enabled).toEqual(none);
+    await expect
+        .poll(async () => (await ran(page)).slice(before))
+        .toEqual(["Select All", "Invert Selection", "Fill Selection", "Deselect"]);
 
     // A disabled button runs nothing.
     await action(bar(page), "demo.select.crop").click({ force: true });
-    expect((await ran(page)).slice(before)).toHaveLength(3);
+    expect((await ran(page)).slice(before)).toHaveLength(4);
 
-    // In the overflow menu too: enabled with its command, and run from there.
+    // In the overflow menu too: the last button, disabled with its command, and run from there.
     await page.setViewportSize({ width: 1280, height: 720 });
     await expect
         .poll(async () => (await actionIds(bar(page))).length)
         .toBeLessThan(MARQUEE_ACTIONS.length);
     await openOverflow(page);
-    const crop = action(overflowMenu(page), "demo.select.crop");
-    await expect(crop).toBeDisabled();
+    const stroke = action(overflowMenu(page), "demo.select.stroke");
+    await expect(stroke).toBeDisabled();
     await page.keyboard.press("Escape");
     await action(bar(page), "demo.select.all").click();
-    await expect(selection).toHaveText("64 × 64");
+    await expect(action(bar(page), "demo.select.deselect")).toBeEnabled();
     await openOverflow(page);
-    await expect(crop).toBeEnabled();
-    await crop.click();
-    await expect(selection).toHaveText("None");
-    expect((await ran(page)).slice(-1)).toEqual(["Crop to Selection"]);
+    await expect(stroke).toBeEnabled();
+    await stroke.click();
+    await expect.poll(async () => (await ran(page)).slice(-1)).toEqual(["Stroke Selection"]);
     expect(errors).toEqual([]);
 });
 
@@ -451,7 +461,7 @@ for (const theme of THEMES) {
         if (theme === "light") await chooseDemoTheme(page, "light");
         await selectMarquee(page);
         await action(bar(page), "demo.select.all").click();
-        await expect(readout(page, "selection")).toHaveText("64 × 64");
+        await expect(action(bar(page), "demo.select.deselect")).toBeEnabled();
         const closed = await audit(page, '[data-region="context-bar"]');
         expect(closed.violations).toEqual([]);
         expect(closed.contrastUndecided).toEqual([]);

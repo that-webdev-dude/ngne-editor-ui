@@ -4,17 +4,19 @@ import { record } from "./keys.ts";
 import {
     CROP_TO_SELECTION_COMMAND,
     DESELECT_COMMAND,
+    FILL_SELECTION_COMMAND,
     hasSelection,
     INVERT_SELECTION_COMMAND,
     SELECT_ALL_COMMAND,
     selectionStore,
     setSelection,
+    STROKE_SELECTION_COMMAND,
 } from "./selection.ts";
 
 // The demo editor's selection commands (SPEC §7.1): the commands the marquee's command buttons
 // run in the context bar (SPEC §8 Tools). Outside the menus and without keys, so the menus and
 // the shortcut sheet stay as they are. Each records its title in the key log when it runs;
-// Deselect, Invert and Crop are disabled while nothing is selected.
+// every command but Select All is disabled while nothing is selected.
 
 const ran = (title: string, then: () => void) => () => {
     then();
@@ -46,5 +48,17 @@ export const commands: CommandSpec<DemoMenu, never>[] = [
         title: "Crop to Selection",
         enabled: hasSelection,
         run: ran("Crop to Selection", () => setSelection("none")),
+    },
+    {
+        id: FILL_SELECTION_COMMAND,
+        title: "Fill Selection",
+        enabled: hasSelection,
+        run: ran("Fill Selection", () => undefined),
+    },
+    {
+        id: STROKE_SELECTION_COMMAND,
+        title: "Stroke Selection",
+        enabled: hasSelection,
+        run: ran("Stroke Selection", () => undefined),
     },
 ];
