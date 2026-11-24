@@ -133,6 +133,34 @@ describe("licenceAllowed", () => {
         expect(licenceAllowed("MIT OR")).toBe(false);
     });
 
+    it("reads brackets anywhere, and AND before OR", () => {
+        expect(licenceAllowed("(MIT OR Apache-2.0) AND (GPL-2.0-only)")).toBe(false);
+        expect(licenceAllowed("(MIT OR Apache-2.0) AND GPL-2.0-only")).toBe(false);
+        expect(licenceAllowed("GPL-2.0-only AND (MIT OR Apache-2.0)")).toBe(false);
+        expect(licenceAllowed("(MIT OR Apache-2.0) AND (ISC)")).toBe(true);
+        expect(licenceAllowed("((MIT))")).toBe(true);
+        expect(licenceAllowed("MIT OR GPL-3.0 AND MPL-2.0")).toBe(true);
+        expect(licenceAllowed("GPL-3.0 OR MIT AND MPL-2.0")).toBe(false);
+        expect(licenceAllowed("(GPL-3.0 OR MIT) AND ISC")).toBe(true);
+    });
+
+    it("refuses what is not an expression", () => {
+        for (const expression of [
+            "(MIT",
+            "MIT)",
+            "()",
+            "(MIT) (ISC)",
+            "MIT ISC",
+            "AND MIT",
+            "MIT AND",
+            "MIT OR OR ISC",
+            "(MIT OR) ISC",
+            "MIT WITH LLVM-exception",
+        ]) {
+            expect(licenceAllowed(expression), expression).toBe(false);
+        }
+    });
+
     it("takes the app's allowlist", () => {
         expect(licenceAllowed("MIT", ["ISC"])).toBe(false);
         expect(licenceAllowed("MIT OR CC0-1.0", ["CC0-1.0"])).toBe(true);
@@ -310,6 +338,21 @@ describe("licenceTextMatches", () => {
         expect(licenceTextMatches("GPL-3.0 OR MIT", ["GNU GENERAL PUBLIC LICENSE"])).toBe(false);
         expect(licenceTextMatches("MIT AND ISC", [MIT, ISC])).toBe(true);
         expect(licenceTextMatches("MIT AND ISC", [MIT])).toBe(false);
+    });
+
+    it("reads brackets anywhere, and AND before OR", () => {
+        expect(
+            licenceTextMatches("(MIT OR Apache-2.0) AND (GPL-2.0-only)", [
+                MIT,
+                "GNU GENERAL PUBLIC LICENSE",
+            ]),
+        ).toBe(false);
+        expect(licenceTextMatches("(MIT OR Apache-2.0) AND ISC", [textOf("Apache-2.0"), ISC])).toBe(
+            true,
+        );
+        expect(licenceTextMatches("(MIT OR Apache-2.0) AND ISC", [ISC])).toBe(false);
+        expect(licenceTextMatches("ISC OR MIT AND Apache-2.0", [MIT])).toBe(false);
+        expect(licenceTextMatches("(MIT", [MIT])).toBe(false);
     });
 
     it("takes the app's phrases, and holds no licence without them", () => {

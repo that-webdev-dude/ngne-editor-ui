@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { oklabToSrgb8, srgb8ToOklab, writeOklab } from "../../src/colour/index.ts";
 
-// sRGB8 ↔ OKLab of `@ngne/editor-ui/colour` (SPEC §4), written clean-room from the published
-// OKLab matrices and the sRGB standard (BRIEF D21, PROVENANCE §3). The expected values are the
-// behaviour the editors rely on.
+// sRGB8 ↔ OKLab of `@ngne/editor-ui/colour` (SPEC §4), a module written clean-room from the
+// published OKLab matrices and the sRGB standard (BRIEF D21, PROVENANCE §3). The expected values
+// are the behaviour the editors rely on.
 
 describe("srgb8ToOklab", () => {
     // Reference values: the OKLab coordinates of the sRGB primaries and of white

@@ -1,6 +1,6 @@
 {
     "name": "@ngne/editor-ui",
-    "version": "0.0.0",
+    "version": "0.1.0",
     "description": "Shared interface of the NGNE editor suite: tokens, primitives, shell, commands and keys",
     "license": "MIT",
     "repository": {

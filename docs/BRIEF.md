@@ -59,7 +59,7 @@ under `src/`, as tilemap DESIGN §3.2–3.3 lists them.
 | Licences | View → Open Source Licences… dialog; the build helper that generates `licences.txt` from the lockfile and fails on a missing or unlisted package |
 | Colour | Colour maths (`hex`, `hsv`, `rgba`, `oklab`, `contrast`) and the `#rrggbb` text format, under its own subpath (D12) |
 | Gallery | The dev gallery, extended to every export, deployed as the visual canon |
-| Canon docs | `docs/DESIGN.md`: principles, tokens, components, overflow rules, shared surfaces, viewport chrome rules, interaction rules, accessibility; merged from sprite DESIGN §1–4, §6–8 and tilemap SUITE §2–4 |
+| Canon docs | `docs/DESIGN.md`: principles, tokens, components, overflow rules, shared surfaces, viewport chrome rules, interaction rules, accessibility; merged from sprite DESIGN §1–4, §6–8 and tilemap SUITE §1–4 |
 
 Later (not v1): the colour picker (D19), the app icon generator (7×7 mark grid, `--accent`),
 shared Playwright helpers (`settleTimers`, readback), the sprite core.

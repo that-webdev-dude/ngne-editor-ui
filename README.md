@@ -6,9 +6,6 @@ Licences dialogs, colour maths, and the suite's design canon. The NGNE Sprite Ed
 Tilemap Editor and the NGNE Game Editor build on it, so every editor of the suite looks and
 behaves the same.
 
-Not yet published: the first version is being cut from the NGNE Sprite Editor. Until
-`@ngne/editor-ui` 0.1.0 is on npm, the commands below describe the intended use.
-
 ## Requirements
 
 - An editor of the suite: React 19, desktop Chrome or Edge (current stable) with WebGPU, Vite
@@ -122,6 +119,33 @@ it("takes every colour of the app's CSS from the tokens", () => {
 });
 ```
 
+## Subpaths
+
+| Subpath                          | Contents                                                                                                               |
+| -------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `@ngne/editor-ui`                | `createEditorUi`, `UiRoot`, `useEditorUi`, the configuration types, `persistedNames`, theme and recent-commands stores |
+| `@ngne/editor-ui/styles.css`     | Tokens, base styles and every component stylesheet but the gallery's                                                   |
+| `@ngne/editor-ui/styles/check`   | `checkStylesheets`, for an app's unit test                                                                             |
+| `@ngne/editor-ui/primitives`     | Buttons, toggles, fields, slider, select, popovers, dialog, context menu, tooltip, splitter, icon                      |
+| `@ngne/editor-ui/focus`          | Input modality, inert outside modal layers, menu opener, returning focus                                               |
+| `@ngne/editor-ui/messages`       | Toasts, dialog host and registry, notices, the discard question, region boundary                                       |
+| `@ngne/editor-ui/shell`          | `AppShell` and its regions: menu bar, tool rail, context bar, dock, tab strip, status bar, bottom region               |
+| `@ngne/editor-ui/commands`       | Command registry, chords and keymap, menus, command palette, shortcut sheet                                            |
+| `@ngne/editor-ui/overlay`        | Overlay layer registry, wheel pan and zoom steps                                                                       |
+| `@ngne/editor-ui/platform`       | Window size, WebGPU check, storage access                                                                              |
+| `@ngne/editor-ui/pwa`            | Update flow and toast, precache logic                                                                                  |
+| `@ngne/editor-ui/pwa/worker`     | `installServiceWorker`, for the app's service worker                                                                   |
+| `@ngne/editor-ui/about`          | About dialog and command, `AppInfo`                                                                                    |
+| `@ngne/editor-ui/about/build`    | `appInfoDefines`, the build facts the About dialog shows                                                               |
+| `@ngne/editor-ui/licences`       | Open Source Licences dialog and command                                                                                |
+| `@ngne/editor-ui/licences/build` | `generateLicences`: writes `licences.txt` and fails the build on a missing or unlisted package                         |
+| `@ngne/editor-ui/colour`         | Hex, HSV, RGBA, OKLab and contrast maths; the `#rrggbb` text format                                                    |
+| `@ngne/editor-ui/gallery`        | `Gallery` and its entry types, for an app's development gallery                                                        |
+| `@ngne/editor-ui/gallery.css`    | The gallery's stylesheets, imported after `styles.css` by the gallery route only                                       |
+
+The worker and build subpaths (`pwa/worker`, `about/build`, `licences/build`, `styles/check`)
+load neither React nor the DOM.
+
 Every option, subpath and persisted name is in [docs/SPEC.md](docs/SPEC.md). Moving an
 existing editor onto the package, or to a newer version of it: [docs/MIGRATION.md](docs/MIGRATION.md).
 
@@ -143,8 +167,7 @@ existing editor onto the package, or to a newer version of it: [docs/MIGRATION.m
 The gallery is the suite's visual canon: every token and component in both themes, with the
 open-source licences of its build. It is deployed to
 <https://that-webdev-dude.github.io/ngne-editor-ui/> from each release tag and by manual
-dispatch from `main`; it is not yet deployed (the first deploy follows the first full licence
-audit).
+dispatch from `main`.
 
 Locally, with the package built first:
 

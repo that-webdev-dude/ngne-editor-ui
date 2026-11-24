@@ -218,7 +218,8 @@ export function bundlerPackagesOf(
 
 /**
  * Whether an SPDX expression is allowed: one identifier of `allowed`, or an expression of
- * them with OR (one allowed alternative suffices) and AND (every part must be allowed).
+ * them with OR (one allowed alternative suffices), AND (every part must be allowed) and
+ * brackets.
  */
 export function licenceAllowed(
     expression: string,
@@ -255,41 +256,52 @@ function wordsOf(text: string): string {
 }
 
 /**
- * Whether an SPDX expression holds when each identifier holds as `holds` says: an expression
- * of identifiers with OR (one alternative suffices) and AND (every part must hold).
+ * Whether an SPDX expression holds when each identifier holds as `holds` says: identifiers
+ * joined by AND (every part must hold), which binds tighter than OR (one alternative
+ * suffices), grouped by brackets anywhere. Anything else, `WITH` included, is not an
+ * expression and never holds.
  */
 function satisfies(expression: string, holds: (id: string) => boolean): boolean {
-    const bare = expression
-        .trim()
-        .replace(/^\((.*)\)$/, "$1")
-        .trim();
-    if (bare === "") return false;
-    const tokens = bare.split(/\s+/);
-    const alternatives = splitOn(tokens, "OR");
-    if (alternatives.length > 1) {
-        // An operator at an end or two in a row leave an empty operand: not an expression.
-        if (alternatives.includes("")) return false;
-        return alternatives.some((part) => satisfies(part, holds));
-    }
-    const parts = splitOn(tokens, "AND");
-    if (parts.length > 1) return parts.every((part) => satisfies(part, holds));
-    return holds(bare);
-}
+    const tokens = expression
+        .replaceAll(/[()]/g, " $& ")
+        .split(/\s+/)
+        .filter((token) => token !== "");
+    let at = 0;
 
-/** The operands of `operator` among `tokens`, each joined back with single spaces. */
-function splitOn(tokens: readonly string[], operator: string): string[] {
-    const operands: string[] = [];
-    let current: string[] = [];
-    for (const token of tokens) {
-        if (token === operator) {
-            operands.push(current.join(" "));
-            current = [];
-        } else {
-            current.push(token);
+    // Each reader returns null for a token sequence that is not an expression. Both sides
+    // of an operator are read in full, so a malformed part is never skipped.
+    const either = (): boolean | null => {
+        let value = both();
+        while (value !== null && tokens[at] === "OR") {
+            at += 1;
+            const next = both();
+            value = next === null ? null : value || next;
         }
-    }
-    operands.push(current.join(" "));
-    return operands;
+        return value;
+    };
+    const both = (): boolean | null => {
+        let value = operand();
+        while (value !== null && tokens[at] === "AND") {
+            at += 1;
+            const next = operand();
+            value = next === null ? null : value && next;
+        }
+        return value;
+    };
+    const operand = (): boolean | null => {
+        const token = tokens[at];
+        at += 1;
+        if (token === "(") {
+            const value = either();
+            const closed = tokens[at] === ")";
+            at += 1;
+            return closed ? value : null;
+        }
+        if (token === undefined || [")", "AND", "OR", "WITH"].includes(token)) return null;
+        return holds(token);
+    };
+
+    return either() === true && at === tokens.length;
 }
 
 /** An SPDX identifier as `package.json` gives one: a string, or an object with a string `type`. */
