@@ -694,6 +694,18 @@ export function listedPackages(text: string): string[] {
     return listed;
 }
 
+/**
+ * The directories of `dirs` whose package, by name and version read from its `package.json`,
+ * the licences file `text` lists (`listedPackages`), in the order of `dirs`.
+ */
+export function listedDirsIn(text: string, dirs: readonly string[]): string[] {
+    const listed = new Set(listedPackages(text));
+    return dirs.filter((dir) => {
+        const { name, version } = readManifest(dir);
+        return listed.has(`${name} ${version}`);
+    });
+}
+
 /** How the packages a licences file lists differ from a build's. */
 export interface LicencesMismatch {
     /** Packages of the build the file does not list, as "name version". */

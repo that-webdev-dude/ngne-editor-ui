@@ -465,7 +465,13 @@ closing-popover hook, as the sprite editor at the cut.
 - **Service worker:** `generateLicences` also returns `serviceWorkerPlugin`, for the service
   worker's own build (`injectManifest.buildPlugins.vite` of `vite-plugin-pwa`), which runs
   after the app's build has written `licences.txt`: that build fails on code of a package the
-  file does not list, a module it cannot place, or excluded code. Each check is exported from
+  file does not list, a module it cannot place, or excluded code. It checks against the list
+  the app's build of the same `generateLicences` call made; when no app build of that call ran
+  in the process (the config module evaluated again for the worker's build), against the
+  `licences.txt` in the directory the service worker's build writes to. In every mode and start
+  method (CLI or Vite's `build()`), a service worker build without a list fails, saying why
+  (the app's build failed before it made the file, with its error, or there is no file at the
+  path it names) and naming no package. Each check is exported from
   `licences/build` for an app's unit tests (`licenceTextMatches`, `moduleSource`,
   `unknownModules`, `bundlerPackagesOf`, `listedPackages`, `licencesFileMismatch`,
   `unlistedPackages`).

@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import {
     LICENCES_FILE,
@@ -9,6 +9,7 @@ import {
     bundlerPackagesOf,
     excludedCodeIn,
     licencesFileMismatch,
+    listedDirsIn,
     moduleSource,
     packageDirsOf,
     peerPackageDirs,
@@ -69,6 +70,8 @@ export interface DevServer {
 export interface LicencesPlugin {
     name: string;
     configureServer(server: DevServer): void;
+    /** Notes that the app's build started: the service worker's check waits for its list. */
+    buildStart(): void;
     generateBundle: {
         order: "post";
         handler(this: BundleContext, options: unknown, bundle: Record<string, BundleOutput>): void;
@@ -89,7 +92,10 @@ export interface LicencesWorkerPlugin {
 
 /**
  * The service worker's plugin: checks the service worker's own build, which the PWA plugin
- * runs after the app's, against the packages the licences file lists.
+ * runs after the app's, against the packages the licences file lists: the list the app's build
+ * of the same `generateLicences` call made, or, when no app build of that call ran in this
+ * process (the config module evaluated again), the `licences.txt` in the directory the service
+ * worker's build writes to.
  */
 export interface LicencesServiceWorkerPlugin {
     name: string;
@@ -130,6 +136,16 @@ function renderedModules(bundle: Record<string, BundleOutput>): string[] {
     return ids;
 }
 
+/** The directory a build writes to: its `dir`, or the directory of its `file`. */
+function outputDirOf(options: WriteOptions): string | undefined {
+    return options.dir ?? (options.file === undefined ? undefined : dirname(options.file));
+}
+
+/** The message of an error a hook threw. */
+function messageOf(error: unknown): string {
+    return error instanceof Error ? error.message : String(error);
+}
+
 /** Module ids for an error message, each quoted. */
 function quoted(ids: readonly string[]): string {
     return ids.map((id) => JSON.stringify(id)).join(", ");
@@ -145,7 +161,7 @@ function quoted(ids: readonly string[]): string {
  * allowed licence and its text, on bundled code of a package that is neither, on excluded
  * code found in the bundle, on a rendered module it cannot place, and when the file as
  * written does not list exactly the build's packages; the service worker's build fails on
- * code of a package the file does not list.
+ * code of a package the file does not list, and, saying where it looked, when it has no list.
  */
 export function generateLicences(options: LicencesOptions): LicencesPlugins {
     const { root } = options;
@@ -158,6 +174,12 @@ export function generateLicences(options: LicencesOptions): LicencesPlugins {
 
     /** The packages the licences file lists, once the app's build has made it; null before. */
     let listedDirs: string[] | null = null;
+
+    /** Whether an app build with `plugin` started in this process. */
+    let appBuildStarted = false;
+
+    /** Why the app's build stopped before it made the list, when one of its checks failed. */
+    let appBuildFailure: string | null = null;
 
     /** The runtime packages a build may bundle: the runtime dependencies, the peers with theirs. */
     const runtime = () => {
@@ -220,6 +242,88 @@ export function generateLicences(options: LicencesOptions): LicencesPlugins {
         }
     }
 
+    /**
+     * Checks the app's bundle, the web workers' modules included, and emits the licences file
+     * with the packages it lists (`listedDirs`).
+     */
+    function listBundle(context: BundleContext, bundle: Record<string, BundleOutput>): void {
+        noteModules(bundle);
+        rejectExcluded(context, bundle);
+        const bundled = packageDirsOf(bundledModules);
+        const strays = strayPackages(bundled, runtime());
+        if (strays.length > 0) {
+            context.error(
+                "The build bundles code of packages that are not runtime dependencies " +
+                    `in package-lock.json: ${strays.join(", ")}.`,
+            );
+        }
+        rejectUnplaced(context);
+        try {
+            listedDirs = withBuildPackages(
+                bundled,
+                bundlerPackagesOf(bundledModules, virtualModules),
+            );
+            context.emitFile({
+                type: "asset",
+                fileName: LICENCES_FILE,
+                source: buildLicencesFile(listedDirs, options),
+            });
+        } catch (error) {
+            if (error instanceof LicenceError) context.error(error.message);
+            throw error;
+        }
+    }
+
+    /**
+     * The packages of the service worker's `modules` that the app build's licences file lists:
+     * the list of this call's app build, else, when no app build of this call ran in this
+     * process, the `licences.txt` in the directory the service worker's build writes to. Fails
+     * the build, saying where it looked, when there is no list.
+     */
+    function listedForServiceWorker(
+        context: BundleContext,
+        writeOptions: WriteOptions,
+        modules: readonly string[],
+    ): string[] {
+        if (listedDirs !== null) return listedDirs;
+        const noList = (reason: string): never =>
+            context.error(
+                "The service worker's build has no list of the app build's packages to check " +
+                    `its own against: ${reason}.`,
+            );
+        if (appBuildStarted) {
+            return noList(
+                appBuildFailure === null
+                    ? `the app's build of this generateLicences call stopped before it made ${LICENCES_FILE}`
+                    : `the app's build of this generateLicences call failed before it made ${LICENCES_FILE}: ${appBuildFailure.replace(/\.$/, "")}`,
+            );
+        }
+        const dir = outputDirOf(writeOptions);
+        if (dir === undefined) {
+            return noList(
+                `no app build of this generateLicences call made ${LICENCES_FILE}, and the ` +
+                    "service worker's build writes to no directory to read it from",
+            );
+        }
+        const file = join(dir, LICENCES_FILE);
+        if (!existsSync(file)) {
+            return noList(
+                `no app build of this generateLicences call made ${LICENCES_FILE}, and there ` +
+                    `is no ${file}`,
+            );
+        }
+        try {
+            const dirs = [
+                ...packageDirsOf(modules),
+                ...buildPackageDirs(root, bundlerPackagesOf(modules, virtualModules)),
+            ];
+            return listedDirsIn(readFileSync(file, "utf8"), dirs);
+        } catch (error) {
+            if (error instanceof LicenceError) context.error(`${file}: ${error.message}`);
+            throw error;
+        }
+    }
+
     const workerPlugin: LicencesWorkerPlugin = {
         name: "ngne-licences-collect",
         apply: "build",
@@ -247,41 +351,25 @@ export function generateLicences(options: LicencesOptions): LicencesPlugins {
                 }
             });
         },
+        buildStart() {
+            appBuildStarted = true;
+            appBuildFailure = null;
+            listedDirs = null;
+        },
         generateBundle: {
             order: "post",
             handler(_options, bundle) {
-                noteModules(bundle);
-                rejectExcluded(this, bundle);
-                const bundled = packageDirsOf(bundledModules);
-                const strays = strayPackages(bundled, runtime());
-                if (strays.length > 0) {
-                    this.error(
-                        "The build bundles code of packages that are not runtime dependencies " +
-                            `in package-lock.json: ${strays.join(", ")}.`,
-                    );
-                }
-                rejectUnplaced(this);
                 try {
-                    listedDirs = withBuildPackages(
-                        bundled,
-                        bundlerPackagesOf(bundledModules, virtualModules),
-                    );
-                    this.emitFile({
-                        type: "asset",
-                        fileName: LICENCES_FILE,
-                        source: buildLicencesFile(listedDirs, options),
-                    });
+                    listBundle(this, bundle);
                 } catch (error) {
-                    if (error instanceof LicenceError) this.error(error.message);
+                    appBuildFailure = messageOf(error);
                     throw error;
                 }
             },
         },
         // The file as written lists exactly the packages whose code the build rendered.
         writeBundle(writeOptions) {
-            const dir =
-                writeOptions.dir ??
-                (writeOptions.file === undefined ? undefined : dirname(writeOptions.file));
+            const dir = outputDirOf(writeOptions);
             if (dir === undefined) this.error("The build writes to no directory.");
             const file = join(dir, LICENCES_FILE);
             try {
@@ -306,7 +394,7 @@ export function generateLicences(options: LicencesOptions): LicencesPlugins {
     const serviceWorkerPlugin: LicencesServiceWorkerPlugin = {
         name: "ngne-licences-service-worker",
         apply: "build",
-        generateBundle(_options, bundle) {
+        generateBundle(outputOptions, bundle) {
             rejectExcluded(this, bundle);
             const modules = renderedModules(bundle);
             const unknown = unknownModules(modules, root, virtualModules);
@@ -316,7 +404,12 @@ export function generateLicences(options: LicencesOptions): LicencesPlugins {
                         `files nor a package's, which no licence covers: ${quoted(unknown)}.`,
                 );
             }
-            const unlisted = unlistedPackages(modules, listedDirs, virtualModules);
+            const listed = listedForServiceWorker(
+                this,
+                (outputOptions ?? {}) as WriteOptions,
+                modules,
+            );
+            const unlisted = unlistedPackages(modules, listed, virtualModules);
             if (unlisted.length > 0) {
                 this.error(
                     `The service worker bundles code of packages that ${LICENCES_FILE} does not ` +

@@ -1,12 +1,15 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { build } from "vite";
+import type { Plugin } from "vite";
 import { afterAll, describe, expect, it } from "vitest";
 import { generateLicences, unlistedPackages } from "../../src/build/licences/index.ts";
 import type {
     BundleOutput,
     ExcludedCode,
     LicencesPlugins,
+    LicencesServiceWorkerPlugin,
 } from "../../src/build/licences/index.ts";
 import { buildEntry, bundleContext, chunkOf } from "./support/licences.ts";
 
@@ -101,15 +104,18 @@ describe("the service worker's bundle", () => {
         );
     });
 
-    it("fails with every package before the app's build has made licences.txt", () => {
+    it("fails with no list before the app's build has made licences.txt, naming no package", () => {
         const { serviceWorkerPlugin } = generateLicences({ root, title: "Fixture" });
-        expect(() =>
+        const check = () =>
             serviceWorkerPlugin.generateBundle.call(
                 context,
                 {},
                 chunkOf(`${prefix}/node_modules/listed/index.js`),
-            ),
-        ).toThrow(/does not list: node_modules\/listed\./);
+            );
+        expect(check).toThrow(
+            /has no list of the app build's packages .*: no app build of this generateLicences call made licences\.txt, and the service worker's build writes to no directory/,
+        );
+        expect(check).not.toThrow(/does not list: /);
     });
 
     it("fails with a module it cannot place, naming it", () => {
@@ -175,5 +181,204 @@ describe("a service worker built after the app", () => {
                 licences.serviceWorkerPlugin,
             ]),
         ).rejects.toThrow(/licences\.txt does not list: node_modules\/other\./);
+    }, 60_000);
+});
+
+// The service worker built as vite-plugin-pwa builds it (`injectManifest`): from the app
+// build's `closeBundle`, by Vite's `build()` with no config file, into the app's output
+// directory, with `injectManifest.buildPlugins.vite`. Rolldown runs `closeBundle` after a
+// failed build too, so the service worker's build follows an app build that stopped before it
+// made licences.txt, and its error is the one `build()` rejects with. The app builds in
+// development mode through `build()`, with NODE_ENV=development, as an E2E support's
+// in-process build with test hooks does.
+
+/** Resolves `virtual:<name>` to the project file `<root>/src/<name>.js`, holding `source`. */
+function entryPlugin(name: string, source: string): Plugin {
+    const id = `${prefix}/src/${name}.js`;
+    return {
+        name: `entry-${name}`,
+        resolveId: (spec) => (spec === `virtual:${name}` ? id : null),
+        load: (spec) => (spec === id ? source : null),
+    };
+}
+
+/** Serves `virtual:probe` as a virtual module no option declares, as a bundler's helper. */
+const probe: Plugin = {
+    name: "probe",
+    resolveId: (id) => (id === "virtual:probe" ? "\0virtual:probe" : null),
+    load: (id) => (id === "\0virtual:probe" ? "export const probe = 'probe';\n" : null),
+};
+
+/** Runs `run` with NODE_ENV set to `mode`, as `vite build --mode <mode>` from a script. */
+async function withNodeEnv<T>(mode: string, run: () => Promise<T>): Promise<T> {
+    const before = process.env.NODE_ENV;
+    process.env.NODE_ENV = mode;
+    try {
+        return await run();
+    } finally {
+        process.env.NODE_ENV = before;
+    }
+}
+
+/** Builds `virtual:<name>` (`source`) into `outDir` in `mode`, written to disk. */
+function buildToDisk(
+    outDir: string,
+    name: string,
+    source: string,
+    plugins: readonly Plugin[],
+    mode: string,
+    emptyOutDir: boolean,
+): Promise<unknown> {
+    return build({
+        configFile: false,
+        root,
+        mode,
+        logLevel: "silent",
+        plugins: [entryPlugin(name, source), ...plugins],
+        build: {
+            outDir,
+            emptyOutDir,
+            minify: false,
+            rollupOptions: { input: `virtual:${name}`, output: { entryFileNames: `${name}.js` } },
+        },
+    });
+}
+
+/** The PWA plugin's step: builds the service worker (`source`) after the app's build. */
+function serviceWorkerBuild(
+    outDir: string,
+    source: string,
+    buildPlugins: readonly Plugin[],
+    mode: string,
+): Plugin {
+    return {
+        name: "service-worker-build",
+        apply: "build",
+        closeBundle: {
+            sequential: true,
+            async handler() {
+                await buildToDisk(outDir, "sw", source, buildPlugins, mode, false);
+            },
+        },
+    };
+}
+
+/** An empty output directory of its own. */
+function outputDir(): string {
+    return mkdtempSync(join(temp, "out-"));
+}
+
+const LISTED_SW = 'import { listed } from "listed";\nglobalThis.sw = listed;\n';
+const OTHER_SW = 'import { other } from "other";\nglobalThis.sw = other;\n';
+const LISTED_APP = 'import { listed } from "listed";\nglobalThis.listed = listed;\n';
+
+describe("a service worker built from the app build's closeBundle, in development mode", () => {
+    const mode = "development";
+
+    /** The app's build with `licences.plugin` and the service worker's step after it. */
+    function buildApp(
+        outDir: string,
+        appSource: string,
+        swSource: string,
+        licences: LicencesPlugins,
+        serviceWorkerPlugin: LicencesServiceWorkerPlugin = licences.serviceWorkerPlugin,
+        extra: readonly Plugin[] = [],
+    ): Promise<unknown> {
+        return withNodeEnv(mode, () =>
+            buildToDisk(
+                outDir,
+                "app",
+                appSource,
+                [
+                    ...extra,
+                    licences.plugin as unknown as Plugin,
+                    serviceWorkerBuild(
+                        outDir,
+                        swSource,
+                        [serviceWorkerPlugin as unknown as Plugin],
+                        mode,
+                    ),
+                ],
+                mode,
+                true,
+            ),
+        );
+    }
+
+    it("passes with a package the app's licences.txt lists, and fails with one it does not", async () => {
+        const passing = outputDir();
+        await expect(
+            buildApp(passing, LISTED_APP, LISTED_SW, generateLicences({ root, title: "Fixture" })),
+        ).resolves.toBeDefined();
+        expect(existsSync(join(passing, "licences.txt"))).toBe(true);
+        expect(existsSync(join(passing, "sw.js"))).toBe(true);
+        await expect(
+            buildApp(
+                outputDir(),
+                LISTED_APP,
+                OTHER_SW,
+                generateLicences({ root, title: "Fixture" }),
+            ),
+        ).rejects.toThrow(/licences\.txt does not list: node_modules\/other\./);
+    }, 60_000);
+
+    it("fails with no list when the app's build failed before it made licences.txt, naming its error", async () => {
+        const failing = buildApp(
+            outputDir(),
+            'import { probe } from "virtual:probe";\nimport { listed } from "listed";\n' +
+                "globalThis.app = [probe, listed];\n",
+            LISTED_SW,
+            generateLicences({ root, title: "Fixture" }),
+            undefined,
+            [probe],
+        );
+        await expect(failing).rejects.toThrow(
+            /has no list of the app build's packages .*: the app's build of this generateLicences call failed before it made licences\.txt: The build renders code of modules .*\\u0000virtual:probe/,
+        );
+        await expect(failing).rejects.not.toThrow(/does not list: /);
+    }, 60_000);
+
+    it("checks against the written licences.txt when the config module is evaluated again for the worker", async () => {
+        // The service worker's plugin comes from another generateLicences call than the app's.
+        const passing = outputDir();
+        await expect(
+            buildApp(
+                passing,
+                LISTED_APP,
+                LISTED_SW,
+                generateLicences({ root, title: "Fixture" }),
+                generateLicences({ root, title: "Fixture" }).serviceWorkerPlugin,
+            ),
+        ).resolves.toBeDefined();
+        expect(existsSync(join(passing, "sw.js"))).toBe(true);
+        await expect(
+            buildApp(
+                outputDir(),
+                LISTED_APP,
+                OTHER_SW,
+                generateLicences({ root, title: "Fixture" }),
+                generateLicences({ root, title: "Fixture" }).serviceWorkerPlugin,
+            ),
+        ).rejects.toThrow(/licences\.txt does not list: node_modules\/other\./);
+    }, 60_000);
+
+    it("fails with no list, naming the file it looked for, when no app build made licences.txt", async () => {
+        const outDir = outputDir();
+        const { serviceWorkerPlugin } = generateLicences({ root, title: "Fixture" });
+        const failing = withNodeEnv(mode, () =>
+            buildToDisk(
+                outDir,
+                "sw",
+                LISTED_SW,
+                [serviceWorkerPlugin as unknown as Plugin],
+                mode,
+                false,
+            ),
+        );
+        await expect(failing).rejects.toThrow(
+            /has no list of the app build's packages .*: no app build of this generateLicences call made licences\.txt, and there is no .*licences\.txt\./,
+        );
+        await expect(failing).rejects.toThrow(join(outDir, "licences.txt"));
+        await expect(failing).rejects.not.toThrow(/does not list: /);
     }, 60_000);
 });
