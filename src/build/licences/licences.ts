@@ -62,11 +62,13 @@ export const LICENCE_PHRASES: Readonly<Record<string, readonly string[]>> = {
 /**
  * The virtual modules (ids that name no file) a build may render, unless the app passes its
  * own list, each with the build-only package whose code it is, by its place under the
- * project: rolldown's module runtime and the modulepreload polyfill its native plugin builds.
+ * project: rolldown's module runtime and the modulepreload polyfill its native plugin builds,
+ * and Vite's preload helper, which a build with a dynamic import renders from Vite's own code.
  */
 export const VIRTUAL_MODULES: Readonly<Record<string, string>> = {
     "\0rolldown/runtime.js": "node_modules/rolldown",
     "\0vite/modulepreload-polyfill.js": "node_modules/rolldown",
+    "\0vite/preload-helper.js": "node_modules/vite",
 };
 
 /** Licence files, NOTICE and third-party licence files among them, at a package's top. */

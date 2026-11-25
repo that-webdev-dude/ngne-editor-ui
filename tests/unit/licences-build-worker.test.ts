@@ -11,7 +11,7 @@ import type {
     LicencesPlugins,
     LicencesServiceWorkerPlugin,
 } from "../../src/build/licences/index.ts";
-import { buildEntry, bundleContext, chunkOf } from "./support/licences.ts";
+import { buildEntry, bundleContext, chunkOf, withNodeEnv } from "./support/licences.ts";
 
 // The service worker's licence check (SPEC §11): the PWA plugin builds the service worker on
 // its own, after the app's build has written licences.txt, so the worker's bundle is checked
@@ -208,17 +208,6 @@ const probe: Plugin = {
     resolveId: (id) => (id === "virtual:probe" ? "\0virtual:probe" : null),
     load: (id) => (id === "\0virtual:probe" ? "export const probe = 'probe';\n" : null),
 };
-
-/** Runs `run` with NODE_ENV set to `mode`, as `vite build --mode <mode>` from a script. */
-async function withNodeEnv<T>(mode: string, run: () => Promise<T>): Promise<T> {
-    const before = process.env.NODE_ENV;
-    process.env.NODE_ENV = mode;
-    try {
-        return await run();
-    } finally {
-        process.env.NODE_ENV = before;
-    }
-}
 
 /** Builds `virtual:<name>` (`source`) into `outDir` in `mode`, written to disk. */
 function buildToDisk(

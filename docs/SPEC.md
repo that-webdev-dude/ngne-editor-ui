@@ -447,8 +447,10 @@ closing-popover hook, as the sprite editor at the cut.
   an editor's dialog of that kind fails at startup, naming the editor's module.
 - **Build helper:** `generateLicences(options)` writes `licences.txt` from the lockfile and
   the bundle. Options: project licence and notices paths, title, build-only packages outside
-  the stray check (rolldown), the virtual modules a build may render with their build-only
-  package (default `VIRTUAL_MODULES`: rolldown's runtime and modulepreload polyfill),
+  the stray check (rolldown; vite too when a build has a dynamic import), the virtual modules
+  a build may render with their build-only package (default `VIRTUAL_MODULES`: rolldown's
+  runtime and modulepreload polyfill, under rolldown; Vite's preload helper, which a build
+  with a dynamic import renders in every mode, under vite),
   excluded-code rules (gifenc's quantizer in the sprite editor), licence allowlist, the
   phrases of each allowed licence's text (default `LICENCE_PHRASES`), stand-in licence texts.
   The build lists the bundled packages and the build-only packages whose virtual modules it

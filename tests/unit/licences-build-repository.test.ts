@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { build } from "vite";
-import type { Plugin, Rollup } from "vite";
+import type { Plugin, Rolldown, Rollup } from "vite";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { generateLicences, packageDirsOf } from "../../src/build/licences/index.ts";
 import { buildEntry } from "./support/licences.ts";
@@ -22,7 +22,7 @@ async function buildGallery(): Promise<Output[]> {
         configFile: GALLERY_CONFIG,
         logLevel: "silent",
         build: { write: false, emptyOutDir: false },
-    })) as Rollup.RollupOutput | Rollup.RollupOutput[];
+    })) as Rolldown.RolldownOutput | Rolldown.RolldownOutput[];
     return (Array.isArray(result) ? result : [result]).flatMap(({ output }) => output);
 }
 

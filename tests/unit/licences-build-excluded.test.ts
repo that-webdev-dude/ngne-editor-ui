@@ -20,7 +20,7 @@ const QUANTIZER: ExcludedCode = {
 /** The outputs of a minified build of `source` with the licences plugin and `excluded`. */
 async function bundle(source: string, excluded: readonly ExcludedCode[]) {
     const { plugin } = generateLicences({ root: ROOT, title: "Fixture", excludedCode: excluded });
-    return buildEntry(ROOT, source, [plugin], true);
+    return buildEntry(ROOT, source, [plugin], { minify: true });
 }
 
 const WITH_QUANTIZER = 'globalThis.formats = ["rgb565", "rgb444"];\n';

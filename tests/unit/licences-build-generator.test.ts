@@ -30,7 +30,9 @@ import {
 } from "../../src/build/licences/index.ts";
 import { peerPackageDirs } from "../../src/build/licences/licences.ts";
 import type { DevServer, StandInTexts } from "../../src/build/licences/index.ts";
-import { bundleContext as context, chunkOf } from "./support/licences.ts";
+import type { Rollup } from "vite";
+import { buildEntry, bundleContext as context, chunkOf, withNodeEnv } from "./support/licences.ts";
+import type { Output } from "./support/licences.ts";
 
 // The licences build helper (SPEC §11): which packages the licences file lists, which licences
 // it accepts, and what it holds. The packages of the fixtures are written to a temporary
@@ -385,9 +387,14 @@ describe("moduleSource", () => {
             kind: "bundler",
             path: "node_modules/rolldown",
         });
+        expect(moduleSource("\0vite/preload-helper.js", root)).toEqual({
+            kind: "bundler",
+            path: "node_modules/vite",
+        });
         expect(VIRTUAL_MODULES).toEqual({
             "\0rolldown/runtime.js": "node_modules/rolldown",
             "\0vite/modulepreload-polyfill.js": "node_modules/rolldown",
+            "\0vite/preload-helper.js": "node_modules/vite",
         });
     });
 
@@ -395,7 +402,7 @@ describe("moduleSource", () => {
         for (const id of [
             "\0virtual:probe",
             "virtual:pwa-register",
-            "\0vite/preload-helper.js",
+            "vite/preload-helper.js",
             "\0commonjsHelpers.js",
             "/elsewhere/code.js",
             "/app",
@@ -427,6 +434,13 @@ describe("moduleSource", () => {
                 "\0rolldown/runtime.js",
             ]),
         ).toEqual(["node_modules/rolldown"]);
+        expect(
+            bundlerPackagesOf([
+                "\0vite/preload-helper.js",
+                "\0rolldown/runtime.js",
+                "/app/src/a.ts",
+            ]),
+        ).toEqual(["node_modules/rolldown", "node_modules/vite"]);
         expect(bundlerPackagesOf(["/app/src/a.ts", "/app/node_modules/react/index.js"])).toEqual(
             [],
         );
@@ -961,4 +975,53 @@ describe("generateLicences", () => {
         expect(errors).toHaveLength(1);
         expect(errors[0]).toBeInstanceOf(LicenceError);
     });
+});
+
+// A build with a dynamic import, of this repository with its installed Vite and rolldown: Vite
+// writes its preload helper into the build, in production and in development mode, as an app's
+// lazy route or its development-only gallery route makes it do.
+describe("a build with a dynamic import", () => {
+    const SOURCE = 'globalThis.load = () => import("virtual:lazy");\n';
+    const modules = { lazy: "export const lazy = 'lazy';\n" };
+    const vite = JSON.parse(
+        readFileSync(join(ROOT, "node_modules", "vite", "package.json"), "utf8"),
+    ) as { version: string };
+
+    /** The outputs of the build in `mode`, with the licences plugin of `buildPackages`. */
+    function buildIn(mode: string, buildPackages: readonly string[]): Promise<Output[]> {
+        const { plugin } = generateLicences({ root: ROOT, title: "Fixture", buildPackages });
+        return withNodeEnv(mode, () => buildEntry(ROOT, SOURCE, [plugin], { mode, modules }));
+    }
+
+    it.each(["production", "development"])(
+        "places Vite's preload helper, lists Vite and passes, in %s mode",
+        async (mode) => {
+            const outputs = await buildIn(mode, ["node_modules/rolldown", "node_modules/vite"]);
+            const rendered = outputs.flatMap((output) =>
+                output.type === "chunk"
+                    ? Object.entries(output.modules)
+                          .filter(([, module]) => module.renderedLength > 0)
+                          .map(([id]) => id)
+                    : [],
+            );
+            expect(rendered).toContain("\0vite/preload-helper.js");
+            expect(unknownModules(rendered, ROOT)).toEqual([]);
+            const file = outputs.find((output) => output.fileName === LICENCES_FILE);
+            expect(file?.type).toBe("asset");
+            expect(listedPackages(String((file as Rollup.OutputAsset).source))).toEqual([
+                `vite ${vite.version}`,
+            ]);
+        },
+        60_000,
+    );
+
+    it.each(["production", "development"])(
+        "fails, naming Vite, when buildPackages does not list it, in %s mode",
+        async (mode) => {
+            await expect(buildIn(mode, ["node_modules/rolldown"])).rejects.toThrow(
+                /renders virtual modules of node_modules\/vite \("\\u0000vite\/preload-helper\.js"\), which the buildPackages option does not list\./,
+            );
+        },
+        60_000,
+    );
 });
