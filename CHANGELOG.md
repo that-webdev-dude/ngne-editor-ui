@@ -4,7 +4,7 @@ All notable changes to `@ngne/editor-ui`. The package follows semantic versions;
 minor version may break the API and a patch never does (docs/SPEC.md §13). Each release has a
 section here, written when it is released.
 
-## 0.1.0
+## 0.1.0 (2026-11-26)
 
 The first release: the shared interface of the NGNE editor suite, moved from the NGNE Sprite
 Editor and the NGNE Tilemap Editor so that every editor of the suite looks and behaves the same.
