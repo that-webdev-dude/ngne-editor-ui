@@ -6,7 +6,7 @@
 primitives, the application shell, the registries every editor builds on, and the suite's
 design canon. The NGNE Sprite Editor and NGNE Tilemap Editor share this code today as
 verbatim and adapted copies (tilemap DESIGN §3.2–3.3, drift-checked); the NGNE Game Editor
-will be its first consumer from scaffold. Apps pin it exactly and keep only their own
+will consume it from its scaffold. Apps pin it exactly and keep only their own
 interface in their DESIGN.md.
 
 | Item | Value |
@@ -94,7 +94,7 @@ shared Playwright helpers (`settleTimers`, readback), the sprite core.
 | D8 | The first version is cut from the sprite editor at a named commit; once cut, shared files change only here, and neither editor edits its copies until it migrates | One source from day one; no third drift path |
 | D9 | npm name `@ngne/editor-ui`, beside `@ngne/core`; the owner can publish under the `@ngne` scope | Owner, 2026-11-15: scope access confirmed before EU-001 |
 | D10 | Built with `tsc` (JS and declarations) plus a CSS copy step; no bundler | Apps bundle; the package stays a plain ESM tree |
-| D11 | Order: package v0.1 → game editor scaffold → sprite editor migration → tilemap editor migration, one change per app; an app's migration merges only after its release hold is lifted, or waits on its branch | Game editor starts without copies; each released app moves alone |
+| D11 | Order: package v0.1 → sprite editor migration → tilemap editor migration, one change per app; the game editor scaffolds on the published package, with no copies, once its repository exists; an app's migration merges only after its release hold is lifted, or waits on its branch | Each released app moves alone; owner, 2026-11-26: the game editor's repository does not exist yet, and the migrations do not wait on it |
 | D12 | Colour maths is in v1, under its own subpath | Every editor's pickers need it; it has no domain meaning |
 | D13 | The gallery is deployed to this repo's Pages on each `v*` release tag and by manual dispatch from `main`; never on every push | It is the visual canon reviewers compare against; the walking skeleton needs one deploy before the first tag |
 | D14 | The cut is the sprite editor's HEAD at cut time plus the tilemap's fixes to shared files: time-limited WebGPU check, command-refresh tracker, licences dialog accessible region, locale-independent module sort, `Readonly` props. Each taken fix is recorded in PROVENANCE and covered by a test | Owner, 2026-11-15: keeps both apps' fixes (inventory §3, §7) |
