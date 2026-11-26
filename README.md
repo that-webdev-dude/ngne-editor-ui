@@ -71,12 +71,36 @@ package's worker:
 import { fileURLToPath } from "node:url";
 import { appInfoDefines } from "@ngne/editor-ui/about/build";
 import { generateLicences } from "@ngne/editor-ui/licences/build";
+import react from "@vitejs/plugin-react";
+import { defineConfig } from "vite";
+import { VitePWA } from "vite-plugin-pwa";
+
+// licences.txt beside index.html; the build fails on a package it cannot list (SPEC §11).
+const licences = generateLicences({
+    root: fileURLToPath(new URL(".", import.meta.url)),
+    title: "NGNE Sprite Editor",
+    // Build-only packages whose code the bundler writes: rolldown's runtime always, and Vite's
+    // preload helper when any build of the app, in any mode, has a dynamic import.
+    buildPackages: ["node_modules/rolldown", "node_modules/vite"],
+});
 
 export default defineConfig({
     // APP_PACKAGE, APP_VERSION, APP_LICENSE, ENGINE_PACKAGE, ENGINE_VERSION from package.json
     // (its name, version, licence and the pinned @ngne/core), under import.meta.env.
     define: appInfoDefines(fileURLToPath(new URL("package.json", import.meta.url))),
-    // plugins: [react(), generateLicences({ … }).plugin, …]
+    plugins: [
+        react(),
+        licences.plugin,
+        VitePWA({
+            strategies: "injectManifest",
+            srcDir: "src/app/pwa",
+            filename: "sw.ts",
+            // The service worker's own build checks its packages against licences.txt.
+            injectManifest: { buildPlugins: { vite: [licences.serviceWorkerPlugin] } },
+        }),
+    ],
+    // Web workers' modules join the same licences.txt.
+    worker: { plugins: () => [licences.workerPlugin] },
 });
 
 // src/app/about/appInfo.ts: the About dialog's facts (Help → About <productName>…)

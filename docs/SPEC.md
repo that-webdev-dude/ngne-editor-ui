@@ -464,6 +464,10 @@ closing-popover hook, as the sprite editor at the cut.
   lockfile's runtime dependencies and the project's peer dependencies with every package they
   require (a library's own site, such as this repository's gallery; an app has no peers); code
   of any other package fails it.
+- **Web workers:** `generateLicences` also returns `workerPlugin`, for the web workers' builds
+  (`worker.plugins`), which run before the app's chunks: it adds the modules each worker
+  renders to the app's build, so `licences.txt` lists their packages and the checks above
+  cover them, and fails a worker's build on excluded code.
 - **Service worker:** `generateLicences` also returns `serviceWorkerPlugin`, for the service
   worker's own build (`injectManifest.buildPlugins.vite` of `vite-plugin-pwa`), which runs
   after the app's build has written `licences.txt`: that build fails on code of a package the
