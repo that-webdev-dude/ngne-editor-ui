@@ -4,10 +4,9 @@
 
 `ngne-editor-ui` is the shared interface package of the NGNE editor suite: design tokens,
 primitives, the application shell, the registries every editor builds on, and the suite's
-design canon. The NGNE Sprite Editor and NGNE Tilemap Editor share this code today as
-verbatim and adapted copies (tilemap DESIGN §3.2–3.3, drift-checked); the NGNE Game Editor
-will consume it from its scaffold. Apps pin it exactly and keep only their own
-interface in their DESIGN.md.
+design canon. The NGNE Sprite Editor and NGNE Tilemap Editor consume the published package at
+0.1.0 in place of their former copies of its files (§7); the NGNE Game Editor will consume it
+from its scaffold. Apps pin it exactly and keep only their own interface in their DESIGN.md.
 
 | Item | Value |
 | --- | --- |
@@ -42,8 +41,8 @@ interface in their DESIGN.md.
 
 ## 4. Feature scope
 
-Grouped by the package's own layers (SPEC §1 will fix them). Sources are sprite editor paths
-under `src/`, as tilemap DESIGN §3.2–3.3 lists them.
+Grouped by the package's own layers (SPEC §1). Sources are sprite editor paths under `src/`
+at the cut; PROVENANCE §2 records each file's source.
 
 | Group | Contents |
 | --- | --- |
@@ -118,11 +117,11 @@ shared Playwright helpers (`settleTimers`, readback), the sprite core.
 
 ## 7. Consumers and migration
 
-| App | Today | Migration |
+| App | Package | Migration |
 | --- | --- | --- |
-| Sprite editor | Owns the source files | Replace the files by imports; keep app-specific ones; full E2E suite; cold-load and tab-switch rows re-measured |
-| Tilemap editor | Verbatim and adapted copies from sprite commits `ea5c91d` (351 PROVENANCE references) and `4987001` (12, the licences dialog) | Same; verbatim PROVENANCE rows and `npm run drift` entries for these files retire; `te-002-provenance` keeps covering the sprite core |
-| Game editor | Not started | Consumes the package from its first ticket |
+| Sprite editor | `@ngne/editor-ui` 0.1.0, pinned exactly | Done at `a145743`: the package's files replaced by imports; app-specific ones kept |
+| Tilemap editor | `@ngne/editor-ui` 0.1.0, pinned exactly | Done at `3f64413`: the copies of the package's files replaced by imports; their PROVENANCE rows and `npm run drift` entries retired; `te-002-provenance` keeps covering the sprite core |
+| Game editor | None: its repository does not exist yet (D11) | Consumes the package from its first ticket |
 
 Each migration is a stack change in that app (`package.json`), approved by the owner, and
 touches startup, layout and the shell, so it runs the app's full E2E suite.
@@ -142,7 +141,7 @@ touches startup, layout and the shell, so it runs the app's full E2E suite.
 The kit's workflow, reduced for a library:
 
 - Phase 1 is an inventory, not a behaviour study: every shared file, its consumers, and the
-  adaptations each app made (tilemap DESIGN §3.2–3.5, sprite editor sources).
+  adaptations each app made (both editors' sources at the cut).
 - Docs set: BRIEF, SPEC (layers, public API, parameters, exports, versioning), DESIGN (the
   canon), MIGRATION (adopting and upgrading in an editor), PROVENANCE, README (install and
   use). No FORMAT, ENGINE or GUIDE.
